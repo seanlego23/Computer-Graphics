@@ -32,3 +32,6 @@ build/imgui.ini
 imgui.ini
 imgui.ini
 imgui.ini
+
+# Project Specifics
+*.DS_Store
