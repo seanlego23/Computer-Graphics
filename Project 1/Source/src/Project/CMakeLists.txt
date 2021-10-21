@@ -15,13 +15,14 @@ link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../../lib")
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}")
 
 file(GLOB_RECURSE G4G2_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../3rdParty/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../3rdParty/*.c)
+file(GLOB_RECURSE G4G2_HEADER_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
 # On Windows, we're not going to worry about CRT secure warnings.
 if (MSVC)
 	set(CMAKE_CXX_FLAGS "$(CMAKE_CXX_FLAGS) /EHsc")
 endif()
 
-add_executable(g4g2 ${G4G2_SOURCE_FILES} always_copy_data.h)
+add_executable(g4g2 ${G4G2_SOURCE_FILES} ${G4G2_HEADER_FILES})
 
 
 if (MSVC)

@@ -14,16 +14,24 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <imgui_internal.h>
 
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <tuple>
 #include <vector>
 #include <filesystem>
 
+#include "Camera.h"
 #include "shader_s.h"
 #include "renderer.h"
+#include "SceneGraph.h"
+
+#include "QuadRenderer.h"
+#include "CubeRenderer.h"
+#include "TorusModel.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -36,66 +44,12 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
 unsigned int texture;
+unsigned int grass_texture;
 
 // image buffer used by raster drawing basics.cpp
 extern unsigned char imageBuff[512][512][3];
 
 int myTexture();
-
-class QuadRenderer : public renderer {
-    // ------------------------------------------------------------------
-    float vertices[12] = {
-         0.5f,  0.5f, 0.0f,  // top right
-         0.5f, -0.5f, 0.0f,  // bottom right
-        -0.5f, -0.5f, 0.0f,  // bottom left
-        -0.5f,  0.5f, 0.0f   // top left 
-    };
-
-protected: 
-    unsigned int indices[6] = {  // note that we start from 0!
-        0, 1, 3,  // first Triangle
-        1, 2, 3   // second Triangle
-    };
-
-    public : QuadRenderer(Shader *shader,glm::mat4 m) 
-    {
-        // set up vertex data (and buffer(s)) and configure vertex attributes
-        modelMatrix = m;
-
-        myShader = shader;
-
-        glGenVertexArrays(1, &VAO);
-        glGenBuffers(1, &VBO);
-        glGenBuffers(1, &EBO);
-        // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-        glBindVertexArray(VAO);
-
-
-        // vertex buffer object, simple version, just coordinates
-
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-
-        // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        // set up the element array buffer containing the vertex indices for the "mesh"
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-        indexCount = sizeof(indices) / sizeof(unsigned int);
-
-        // remember: do NOT unbind the EBO while a VAO is active, as the bound element buffer object IS stored in the VAO; keep the EBO bound.
-        // don't be tempted to do this --->  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-        // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-        // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-        glBindVertexArray(0);
-    }
-};
 
 #pragma warning( disable : 26451 )
 
@@ -106,6 +60,7 @@ void setupTextures()
     // create textures 
         // -------------------------
     glGenTextures(1, &texture);
+    glGenTextures(1, &grass_texture);
 
     // texture is a buffer we will be generating for pixel experiments
     glBindTexture(GL_TEXTURE_2D, texture); // all upcoming GL_TEXTURE_2D operations now have effect on this texture object
@@ -121,17 +76,46 @@ void setupTextures()
     // load image, create texture and generate mipmaps
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 512, 512, 0, GL_RGB, GL_UNSIGNED_BYTE, (const void*)imageBuff);
     glGenerateMipmap(GL_TEXTURE_2D);
+
+    glBindTexture(GL_TEXTURE_2D, grass_texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load("data/grass.png", &width, &height, &nrChannels, 0);
+
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    stbi_image_free(data);
+
 }
 
-void drawIMGUI(Shader *ourShader,renderer *myRenderer) {
+void drawIMGUI(renderer* myRenderer, SceneGraph* sg) {
     // Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
     {
+        static bool instantiated = false;
+
         // used to get values from imGui to the model matrix
         static float axis[] = { 0.0f,0.0f,1.0f };
         static float angle = 0.0f;
 
         static float transVec[] = { 0.0f,0.0f,0.0f };
         static float scaleVec[] = { 1.0f,1.0f,1.0f };
+
+        static float cam_loc[3];
+        static float cam_target[3];
+        static float cam_rotAxis[] = { 0.0f,0.0f,1.0f };
+        static float cam_angle = 0.0f;
+        static float cam_fov;
+        static float cam_aspect;
+        static float cam_clip[] = { 1.0f, 1000.0f };
+
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -143,35 +127,73 @@ void drawIMGUI(Shader *ourShader,renderer *myRenderer) {
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
         static ImGuiInputTextFlags flags = ImGuiInputTextFlags_AllowTabInput;
-        
-        ImGui::Text("Vertex Shader");
-        ImGui::SameLine();
-        ImGui::Text(std::filesystem::absolute("./data/vertex.glsl").u8string().c_str());
-        ImGui::InputTextMultiline("Vertex Shader", ourShader->vtext, IM_ARRAYSIZE(ourShader->vtext), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16), flags);
-        
-        ImGui::Text("Fragment Shader" );
-        ImGui::SameLine();
-        ImGui::Text(std::filesystem::absolute("./data/fragment.glsl").u8string().c_str());
-        ImGui::InputTextMultiline("Fragment Shader", ourShader->ftext, IM_ARRAYSIZE(ourShader->ftext), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16), flags);
+        static Shader* editShader;
+        static renderer* editRenderer;
 
-        if (ImGui::Button("reCompile Shaders"))
-            ourShader->reload();
+        if (ImGui::BeginTabBar("Shaders")) {
+            for (const auto& [key, val] : Shader::shaders) {
+                if (ImGui::BeginTabItem(val->name.c_str())) {
+                    editShader = val;
+                    ImGui::EndTabItem();
+                }
+            }
 
-        ImGui::SameLine();
+            ImGui::EndTabBar();
 
-        if (ImGui::Button("Save Shaders"))
-            ourShader->saveShaders();
+            ImGui::Text("Vertex Shader");
+            ImGui::SameLine();
+            ImGui::Text(std::filesystem::absolute(editShader->vertexPath).u8string().c_str());
+            ImGui::InputTextMultiline("Vertex Shader", editShader->vtext, IM_ARRAYSIZE(editShader->vtext), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16), flags);
+
+            ImGui::Text("Fragment Shader");
+            ImGui::SameLine();
+            ImGui::Text(std::filesystem::absolute(editShader->fragmentPath).u8string().c_str());
+            ImGui::InputTextMultiline("Fragment Shader", editShader->ftext, IM_ARRAYSIZE(editShader->ftext), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16), flags);
+
+            if (ImGui::Button("reCompile Shaders"))
+                editShader->reload();
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Save Shaders"))
+                editShader->saveShaders();
+        }
+
+        if (!instantiated) {
+            cam_loc[0] = sg->camera.position.x;
+            cam_loc[1] = sg->camera.position.y;
+            cam_loc[2] = sg->camera.position.z;
+
+            cam_target[0] = sg->camera.target.x;
+            cam_target[1] = sg->camera.target.y;
+            cam_target[2] = sg->camera.target.z;
+
+            cam_fov = sg->camera.getFOV();
+            cam_aspect = sg->camera.getAspect();
+            sg->camera.getClipNearFar(&cam_clip[0], &cam_clip[1]);
+            instantiated = true;
+        }
 
         // values we'll use to derive a model matrix
-        ImGui::DragFloat3("Translate", transVec,.01f, -3.0f, 3.0f);
-        ImGui::InputFloat3("Axis", axis,"%.2f");
-        ImGui::SliderAngle("Angle", &angle,-90.0f,90.0f);
-        ImGui::DragFloat3("Scale", scaleVec,.01f,-3.0f,3.0f);
+        ImGui::Text("Model Matrix");
+        ImGui::DragFloat3("Translate", transVec, .01f, -10.0f, 10.0f);
+        ImGui::InputFloat3("Axis", axis, "%.2f");
+        ImGui::SliderAngle("Angle", &angle, -90.0f, 90.0f);
+        ImGui::DragFloat3("Scale", scaleVec, .01f, -10.0f, 10.0f);
+
+        ImGui::Text("Camera Matrix");
+        ImGui::DragFloat3("Camera Translate", cam_loc, .01f, -10.0f, 10.0f);
+        ImGui::DragFloat3("Camera Target", cam_target, .01f, -10.0f, 10.0f);
+        ImGui::InputFloat3("Camera Axis", cam_rotAxis, "%.2f");
+        ImGui::SliderAngle("Camera Angle", &cam_angle, -180.0f, 180.0f);
+        ImGui::SliderAngle("FOV", &cam_fov, 30.0f, 120.0f);
+        ImGui::DragFloat("Aspect Ratio", &cam_aspect, 0.01f, -3.0f, 3.0f);
+        ImGui::DragFloat2("Clip Planes", cam_clip, 0.01f, 0.01f, 1000.0f);
 
         // show the texture that we generated
-        ImGui::Image((void*)(intptr_t)texture, ImVec2(64, 64));
+        //ImGui::Image((void*)(intptr_t)texture, ImVec2(64, 64));
 
-        //ImGui::ShowDemoWindow(); // easter agg!  show the ImGui demo window
+        //ImGui::ShowDemoWindow(); // easter egg!  show the ImGui demo window
 
         ImGui::End();
 
@@ -180,6 +202,16 @@ void drawIMGUI(Shader *ourShader,renderer *myRenderer) {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // factor in the results of imgui tweaks for the next round...
+
+        //TODO: Check why angle is negative
+        sg->camera.setPerspective(cam_fov, cam_aspect, cam_clip[0], cam_clip[1]);
+        glm::mat4 view = glm::rotate(glm::mat4(1.0f), -cam_angle, glm::vec3(cam_rotAxis[0], cam_rotAxis[1], cam_rotAxis[2]));
+        sg->camera.position = view * glm::vec4(cam_loc[0], cam_loc[1], cam_loc[2], 1.0f);
+        sg->camera.target = glm::vec4(cam_target[0], cam_target[1], cam_target[2], 1.0f);
+        sg->camera.front = glm::normalize(sg->camera.target - sg->camera.position);
+        sg->camera.right = glm::normalize(glm::cross(sg->camera.front, glm::vec3(0.0f, 0.0f, 1.0f)));
+        sg->camera.up = glm::normalize(glm::cross(sg->camera.right, sg->camera.front));
+        
         myRenderer->setXForm(glm::mat4(1.0f));
         myRenderer->translate(transVec);
         myRenderer->rotate(axis, angle);
@@ -187,8 +219,7 @@ void drawIMGUI(Shader *ourShader,renderer *myRenderer) {
     }
 }
 
-int main()
-{
+int main() {
     namespace fs = std::filesystem;
     std::cout << "Current path is " << fs::current_path() << '\n';
 
@@ -215,8 +246,7 @@ int main()
     // glfw window creation
     // --------------------
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Graphics4Games Fall 2021", NULL, NULL);
-    if (window == NULL)
-    {
+    if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
@@ -226,8 +256,7 @@ int main()
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
+    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
@@ -241,35 +270,56 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    Shader ourShader("data/vertex.lgsl", "data/fragment.lgsl"); // declare and intialize our shader
+    {
+        new Shader("data/vertex.glsl", "data/fragment.glsl", "ground");
+
+        new Shader("data/vtorus.glsl", "data/ftorus.glsl", "torus");
+    }
+    {
+        new Material(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.0f,
+            grass_texture, Shader::shaders["ground"], "grass");
+    }
 
     myTexture();
     setupTextures();
 
+    glm::vec3 eye = glm::vec3(0.0f, -7.0f, 3.0f);
+    glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 camera_up = glm::vec3(0.0f, 0.0f, 1.0f);
+
+    Camera camera;
+    camera.setPerspective(glm::radians(60.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 100.0f);
+    camera.position = eye;
+    camera.target = center;
+    camera.up = camera_up;
+
+    SceneGraph scene(camera);
+
     // set up the perspective and the camera
-    pMat = glm::perspective(1.0472f, ((float)SCR_WIDTH / (float)SCR_HEIGHT), 0.0f, 100.0f);	//  1.0472 radians = 60 degrees
-    vMat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f,0.0f,-3.0f));
+    //pMat = camera.projection();
+    //vMat = glm::lookAt(eye, center, camera_up);
 
-    // pave the way for "scene" rendering
-    std::vector<renderer*> renderers;
+    QuadRenderer quad(glm::mat4(1.0f), Material::materials["grass"]);
+    quad.setInstanced(true);
+    quad.setInstanceCount(400);
+    scene.addRenderer(&quad);
 
-    QuadRenderer myQuad(&ourShader, glm::mat4(1.0f)); // our "first quad"
-    
-    renderers.push_back(&myQuad); // add it to the render list
-
-    // easter egg!  add another quad to the render list
-    /*
-    glm::mat4 tf2 =glm::translate(glm::mat4(1.0f), glm::vec3(-1.5f, 0.0f, 0.0f));
-    tf2 = glm::scale(tf2, glm::vec3(0.5f, 0.5f, 0.5f));
-
-    QuadRenderer myQuad2(&ourShader, tf2);
-    renderers.push_back(&myQuad2);
-    */    
+    Material torusMaterial = {
+        glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
+        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f),
+        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f),
+        0.0f,
+        0
+    };
+    TorusModel torus(1.0f, 0.5f, Shader::shaders["torus"], glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), &torusMaterial);
+    scene.addRenderer(&torus);
 
     // render loop
     // -----------
 
     double lastTime = glfwGetTime();
+    
+    glEnable(GL_DEPTH_TEST);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -285,6 +335,7 @@ int main()
         // input
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
+        
 
         // render background
         // ------
@@ -292,14 +343,10 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        // call each of the queued renderers
-        for(renderer *r : renderers)
-        {
-            r->render(vMat, pMat, deltaTime);
-        }
+        scene.render(deltaTime);
 
         // draw imGui over the top
-        drawIMGUI(&ourShader,&myQuad);
+        drawIMGUI(&torus, &scene);
 
         glfwSwapBuffers(window);
     }
