@@ -41,10 +41,8 @@ protected:
 
 public:
 
-	CubeRenderer(Shader* shader, glm::mat4 m) {
-		modelMatrix = m;
-
-		myShader = shader;
+	CubeRenderer(Material* m, glm::mat4 xForm) {
+		modelMatrix = xForm;
 
 		glGenVertexArrays(1, &VAO);
 		glGenBuffers(1, &VBO[0]);
