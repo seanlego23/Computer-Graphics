@@ -11,9 +11,10 @@
 #include <vector>
 
 #include "Camera.h"
-#include "renderer.h"
+#include "Light.h"
 
 class SceneGraph;
+class renderer;
 
 class treeNode {
 
@@ -50,7 +51,7 @@ public:
 		return parent;
 	}
 
-	void traverse(glm::mat4 vMat, glm::mat4 perspective, double deltaTime);
+	void traverse(glm::mat4 vMat, glm::mat4 perspective, double deltaTime, SceneGraph* sg);
 
 };
 
@@ -62,8 +63,9 @@ class SceneGraph {
 public:
 
 	Camera camera;
+	Light* light;
 
-	SceneGraph(Camera c) : tree(glm::mat4(1.0f), nullptr), camera(c) {
+	SceneGraph(Camera c, DirectionalLight* light) : tree(glm::mat4(1.0f), nullptr), camera(c), light(light) {
 		currentNode = &tree;
 	}
 
@@ -88,7 +90,7 @@ public:
 	void render(double deltaTime) {
 		glm::mat4 pMat = camera.projection() * glm::lookAt(camera.position, camera.target, camera.up);
 
-		tree.traverse(glm::mat4(1.0f), pMat, deltaTime);
+		tree.traverse(glm::mat4(1.0f), pMat, deltaTime, this);
 	}
 
 };
