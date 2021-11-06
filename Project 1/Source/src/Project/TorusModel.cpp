@@ -5,8 +5,7 @@
 
 #include "TorusModel.h"
 
-TorusModel::TorusModel(float holeRadius, float crossXRadius, Shader* s, glm::mat4 xForm, Material* m) { 
-	myShader = s;
+TorusModel::TorusModel(float holeRadius, float crossXRadius, glm::mat4 xForm, Material* m) { 
 	modelMatrix = xForm;
 	material = m;
 
@@ -14,33 +13,39 @@ TorusModel::TorusModel(float holeRadius, float crossXRadius, Shader* s, glm::mat
 	constexpr float twoPi = glm::pi<float>() * 2.0f;
 	const int numOfVertsPerCircle = round(2 * glm::pi<float>() / precision);
 	const long numOfVerts = numOfVertsPerCircle * numOfVertsPerCircle;
-	vertices.reserve(12LL * numOfVerts); //3 floats per vertex
-	indices.reserve(6LL * numOfVerts); //We create 2 triangles for every vertex, see below.
+	vertices.reserve(8LL * numOfVerts);
+	indices.reserve(6LL * numOfVerts);
 
 	int i = 0;
 	//twoPi - precision / 2.0f allows for floating point errors
-	for (float hAngle = 0; hAngle < twoPi - precision / 2.0f; hAngle += precision) {
-		for (float xAngle = 0; xAngle < twoPi - precision / 2.0f; xAngle += precision, i++) {
-			float x = (holeRadius + crossXRadius) * cos(hAngle) + crossXRadius * cos(xAngle) * cos(hAngle);
-			float y = (holeRadius + crossXRadius) * sin(hAngle) + crossXRadius * cos(xAngle) * sin(hAngle);
-			float z = crossXRadius * sin(xAngle);
+	for (float holeAngle = 0; holeAngle < twoPi - precision / 2.0f; holeAngle += precision) {
+		for (float crossXAngle = 0; crossXAngle < twoPi - precision / 2.0f; crossXAngle += precision, i++) {
+			float x = (holeRadius + crossXRadius) * cos(holeAngle) + crossXRadius * cos(crossXAngle) * cos(holeAngle);
+			float y = (holeRadius + crossXRadius) * sin(holeAngle) + crossXRadius * cos(crossXAngle) * sin(holeAngle);
+			float z = crossXRadius * sin(crossXAngle);
 
-			float nx = x - (holeRadius + crossXRadius) * cos(hAngle);//wrong
-			float ny = y - (holeRadius + crossXRadius) * sin(hAngle);//wrong
+			float nx = x - (holeRadius + crossXRadius) * cos(holeAngle);
+			float ny = y - (holeRadius + crossXRadius) * sin(holeAngle);
 			float nz = z;
 
+			glm::vec3 normal(nx, ny, nz);
+			normal = glm::normalize(normal);
+
+			//vertex position
 			vertices.push_back(x);
 			vertices.push_back(y);
 			vertices.push_back(z);
-			vertices.push_back(nx);
-			vertices.push_back(ny);
-			vertices.push_back(nz);
-			vertices.push_back(1.0f - 0.5f * cos(hAngle));
-			vertices.push_back(0.5f - 0.5f * sin(hAngle));
-			vertices.push_back(0.75f - 0.25f * cos(xAngle));
-			vertices.push_back(1.0f);
-			vertices.push_back(0.5f + 0.5f * sin(hAngle));
-			vertices.push_back(0.5f + 0.5f * sin(xAngle));
+
+			//vertex normal
+			vertices.push_back(normal.x);
+			vertices.push_back(normal.y);
+			vertices.push_back(normal.z);
+
+			//texture coords *** This algorithm doesn't extend the coords around the cross section correctly
+			//If it did, it would create a texture artifact on the inside of the torus (via a compressed texture in between pi and pi + precision)
+			//TODO: Fix
+			vertices.push_back(0.5f + 0.5f * sin(holeAngle));
+			vertices.push_back(0.5f + 0.5f * sin(crossXAngle - glm::pi<float>()));
 		}
 	}
 
@@ -73,17 +78,14 @@ TorusModel::TorusModel(float holeRadius, float crossXRadius, Shader* s, glm::mat
 	glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12 * sizeof(float), (void*) 0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*) 0);
 	glEnableVertexAttribArray(0);
 
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 12 * sizeof(float), (void*)(3 * sizeof(float)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 12 * sizeof(float), (void*)(6 * sizeof(float)));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 	glEnableVertexAttribArray(2);
-
-	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 12 * sizeof(float), (void*)(10 * sizeof(float)));
-	glEnableVertexAttribArray(3);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
