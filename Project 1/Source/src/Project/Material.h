@@ -8,23 +8,22 @@
 #include <map>
 #include <string>
 
-#include "Texture.h"
+#include "shader_s.h"
 
 class Material {
-
-	glm::vec4 ambient;
-	glm::vec4 diffuse;
-	glm::vec4 specular;
-
 	Shader* shader;
 
-	float shininess;
 	unsigned int textureID = 0;
 	std::string name;
 
 public:
 
 	static std::map<std::string, Material*> materials;
+
+	glm::vec4 ambient;
+	glm::vec4 diffuse;
+	glm::vec4 specular;
+	float shininess;
 
 	Material(glm::vec4 amb, glm::vec4 diff, glm::vec4 spec, float shine, unsigned int texID, Shader* s, std::string n) :
 		ambient(amb), diffuse(diff), specular(spec), shininess(shine), textureID(texID), shader(s), name(n) {
@@ -36,4 +35,7 @@ public:
 		shader->use();
 		return shader->ID;
 	}
+
+	unsigned int getTextureID() { return textureID; }
+
 };
