@@ -14,6 +14,6 @@ class TorusModel : public model {
 	
 public:
 
-	TorusModel(float holeRadius, float crossXRadius, Shader* s, glm::mat4 xForm, Material* m);
+	TorusModel(float holeRadius, float crossXRadius, glm::mat4 xForm, Material* m);
 
 };
