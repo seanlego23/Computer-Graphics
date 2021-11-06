@@ -1,11 +1,32 @@
 #include "model.h"
 
-unsigned long modelIDCounter = 0;
+const std::string transformEvent::type = "transformEvent";
 
-void model::attachModel(model* m) {
-	attachedModels.insert({m->modelID, m});
+auto transformEvent::getFunctionCall() const -> void(model::*)(attachmentEvent*) { 
+	return &model::onTransformEvent;
 }
 
-void model::detachModel(model* m) {
-	attachedModels.erase(m->modelID);
+unsigned long modelIDCounter = 0;
+
+attachment* model::attachModel(model* m) {
+	/*return &const_cast<attachment&>(attachedModels.emplace(this, m).first);*/
+	return nullptr;
+}
+
+bool model::detachModel(model* m) {
+	//for (auto& it = attachedModels.begin(); it != attachedModels.end(); it++) {
+	//	if ((*it).getAttachedModel()->modelID == m->modelID) {
+	//		attachedModels.erase(it);
+	//		return true;
+	//	}
+	//}
+	return false;
+}
+
+attachment* model::getModelAttachment(model* m) {
+	return nullptr;
+}
+
+attachment* model::getModelAttachment(unsigned long id) {
+	return nullptr;
 }
