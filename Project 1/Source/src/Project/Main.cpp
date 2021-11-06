@@ -27,11 +27,15 @@
 #include "Camera.h"
 #include "shader_s.h"
 #include "renderer.h"
+#include "Material.h"
 #include "SceneGraph.h"
 
+#include "BezierCurve.h"
 #include "QuadRenderer.h"
 #include "CubeRenderer.h"
 #include "TorusModel.h"
+#include "Car.h"
+#include "Road.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -45,6 +49,7 @@ const unsigned int SCR_HEIGHT = 720;
 
 unsigned int texture;
 unsigned int grass_texture;
+unsigned int road_texture;
 
 // image buffer used by raster drawing basics.cpp
 extern unsigned char imageBuff[512][512][3];
@@ -61,6 +66,7 @@ void setupTextures()
         // -------------------------
     glGenTextures(1, &texture);
     glGenTextures(1, &grass_texture);
+    glGenTextures(1, &road_texture);
 
     // texture is a buffer we will be generating for pixel experiments
     glBindTexture(GL_TEXTURE_2D, texture); // all upcoming GL_TEXTURE_2D operations now have effect on this texture object
@@ -86,6 +92,22 @@ void setupTextures()
 
     int width, height, nrChannels;
     unsigned char* data = stbi_load("data/grass.png", &width, &height, &nrChannels, 0);
+
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    stbi_image_free(data);
+
+    glBindTexture(GL_TEXTURE_2D, road_texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); 
+
+    data = stbi_load("data/RoadTexture.png", &width, &height, &nrChannels, 0);
 
     if (data) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
@@ -182,11 +204,11 @@ void drawIMGUI(renderer* myRenderer, SceneGraph* sg) {
         ImGui::DragFloat3("Scale", scaleVec, .01f, -10.0f, 10.0f);
 
         ImGui::Text("Camera Matrix");
-        ImGui::DragFloat3("Camera Translate", cam_loc, .01f, -10.0f, 10.0f);
-        ImGui::DragFloat3("Camera Target", cam_target, .01f, -10.0f, 10.0f);
+        ImGui::DragFloat3("Camera Translate", cam_loc, .01f, -20.0f, 20.0f);
+        ImGui::DragFloat3("Camera Target", cam_target, .01f, -20.0f, 20.0f);
         ImGui::InputFloat3("Camera Axis", cam_rotAxis, "%.2f");
         ImGui::SliderAngle("Camera Angle", &cam_angle, -180.0f, 180.0f);
-        ImGui::SliderAngle("FOV", &cam_fov, 30.0f, 120.0f);
+        ImGui::SliderAngle("FOV", &cam_fov, 10.0f, 200.0f);
         ImGui::DragFloat("Aspect Ratio", &cam_aspect, 0.01f, -3.0f, 3.0f);
         ImGui::DragFloat2("Clip Planes", cam_clip, 0.01f, 0.01f, 1000.0f);
 
@@ -203,7 +225,6 @@ void drawIMGUI(renderer* myRenderer, SceneGraph* sg) {
 
         // factor in the results of imgui tweaks for the next round...
 
-        //TODO: Check why angle is negative
         sg->camera.setPerspective(cam_fov, cam_aspect, cam_clip[0], cam_clip[1]);
         glm::mat4 view = glm::rotate(glm::mat4(1.0f), -cam_angle, glm::vec3(cam_rotAxis[0], cam_rotAxis[1], cam_rotAxis[2]));
         sg->camera.position = view * glm::vec4(cam_loc[0], cam_loc[1], cam_loc[2], 1.0f);
@@ -274,48 +295,114 @@ int main() {
         new Shader("data/vertex.glsl", "data/fragment.glsl", "ground");
 
         new Shader("data/vtorus.glsl", "data/ftorus.glsl", "torus");
-    }
-    {
-        new Material(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.0f,
-            grass_texture, Shader::shaders["ground"], "grass");
+
+        new Shader("data/vOscillate.glsl", "data/fOscillate.glsl", "oscillate");
+
+        new Shader("data/vRoad.glsl", "data/fRoad.glsl", "road");
+
+        new Shader("data/vBezier.glsl", "data/fBezier.glsl", "line");
+
+        new Shader("data/vLit.glsl", "data/fLit.glsl", "material");
     }
 
     myTexture();
     setupTextures();
 
-    glm::vec3 eye = glm::vec3(0.0f, -7.0f, 3.0f);
-    glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 camera_up = glm::vec3(0.0f, 0.0f, 1.0f);
+    {
+        new Material(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.0f,
+                     grass_texture, Shader::shaders["ground"], "grass");
+
+        new Material(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.0f, 
+                     0, Shader::shaders["torus"], "torus");
+
+        new Material(glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), 0.0f, road_texture, Shader::shaders["road"], "road");
+
+        new Material(glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), 0.0f, 0, Shader::shaders["line"], "curve");
+
+        new Material(glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), 0.0f, 0, Shader::shaders["oscillate"], "moveTorus");
+
+        new Material(glm::vec4(0.3f), glm::vec4(0.7f), glm::vec4(0.3f), 64.0f, 0, Shader::shaders["material"], "litMaterial");
+    }
 
     Camera camera;
     camera.setPerspective(glm::radians(60.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 100.0f);
-    camera.position = eye;
-    camera.target = center;
-    camera.up = camera_up;
+    camera.position = glm::vec3(-3.0f, -10.0f, 5.0f);
+    camera.target = glm::vec3(0.0f);
+    camera.up = glm::vec3(0.0f, 0.0f, 1.0f);
 
-    SceneGraph scene(camera);
+    DirectionalLight light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.4f), glm::vec3(1.0f), glm::vec3(1.0f));
 
-    // set up the perspective and the camera
-    //pMat = camera.projection();
-    //vMat = glm::lookAt(eye, center, camera_up);
+    SceneGraph scene(camera, &light);
 
-    QuadRenderer quad(glm::mat4(1.0f), Material::materials["grass"]);
-    quad.setInstanced(true);
-    quad.setInstanceCount(400);
-    scene.addRenderer(&quad);
-
-    Material torusMaterial = {
-        glm::vec4(1.0f, 0.0f, 0.0f, 1.0f),
-        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f),
-        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f),
-        0.0f,
-        0
-    };
-    TorusModel torus(1.0f, 0.5f, Shader::shaders["torus"], glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), &torusMaterial);
+    TorusModel torus(1.2f, 0.5f, glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-4.0f, -6.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), Material::materials["torus"]);
     scene.addRenderer(&torus);
+
+    TorusModel torus2(1.2f, 0.5f, glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, 5.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), Material::materials["litMaterial"]);
+    scene.addRenderer(&torus2);
+
+    glm::mat4 t3transform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    t3transform = glm::translate(glm::mat4(1.0f), glm::vec3(7.0f, 8.0f, 0.0f)) * t3transform;
+    TorusModel torus3(2.0f, 0.25f, t3transform, Material::materials["moveTorus"]);
+    scene.addRenderer(&torus3);
+
+    glm::mat4 justAbove = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.001f));
+    BezierCurve line(Material::materials["curve"], justAbove, glm::vec3(-4.0f, -6.0f, 0.0f), glm::vec3(3.0f, 5.0f, 0.0f), 2e-1, fourPointRectangle);
+    BezierCurve line2(Material::materials["curve"], justAbove, glm::vec3(3.0f, 5.0f, 0.0f), glm::vec3(7.0f, 8.0f, 0.0f), 2e-2, fourPointRectangle);
+    Line line3(Material::materials["curve"], justAbove, glm::vec3(7.0f, 8.0f, 0.0f), glm::vec3(7.0f, 13.0f, 0.0f));
+
+    glm::vec3 up(0.0f, 0.0f, 1.0f);
+    glm::vec3 left(-1.0f, 0.0f, 0.0f);
+    Road road(Material::materials["road"], glm::mat4(1.0f), &line, up, left, left, 1.0f, 0.5f, true);
+    scene.addRenderer(&road);
+
+    Road road2(Material::materials["road"], glm::mat4(1.0f), &line2, up, left, left, 1.0f, 0.5f, false);
+    scene.addRenderer(&road2);
+
+    Road road3(Material::materials["road"], glm::mat4(1.0f), &line3, up, left, left, 1.0f, 0.5f, false);
+    scene.addRenderer(&road3);
+
+    glm::mat4 cTransform = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f));
+    cTransform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * cTransform;
+    cTransform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), up) * cTransform;
+    cTransform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.5f, 0.0f)) * cTransform;
+    Car car(nullptr, cTransform, "data/car/Jeep_Renegade_2016.obj", 2.0f);
+    scene.addRenderer(&car);
 
     // render loop
     // -----------
+
+    /* Deffered Shading setup
+    unsigned int gBuffer;
+    glGenFramebuffers(1, &gBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+    unsigned int gPosition, gNormal, gColorSpec;
+
+    glGenTextures(1, &gPosition);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+
+    // - normal color buffer
+    glGenTextures(1, &gNormal);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+
+    // - color + specular color buffer
+    glGenTextures(1, &gColorSpec);
+    glBindTexture(GL_TEXTURE_2D, gColorSpec);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gColorSpec, 0);
+
+    unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+    glDrawBuffers(3, attachments);
+    */
 
     double lastTime = glfwGetTime();
     
@@ -346,7 +433,7 @@ int main() {
         scene.render(deltaTime);
 
         // draw imGui over the top
-        drawIMGUI(&torus, &scene);
+        drawIMGUI(&line, &scene);
 
         glfwSwapBuffers(window);
     }
@@ -354,6 +441,12 @@ int main() {
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
+
+    for (auto [str, s] : Shader::shaders)
+        delete s;
+
+    for (auto [str, m] : Material::materials)
+        delete m;
     return 0;
 }
 
