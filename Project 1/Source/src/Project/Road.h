@@ -15,7 +15,7 @@ class Road : public model {
 
 	float calculateIntersection(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4);
 	
-	void calculateOffset(std::vector<glm::vec3>& offsetPoints, bool positiveOffset);
+	bool calculateOffset(std::vector<glm::vec3>& offsetPoints, bool positiveOffset);
 
 public:
 

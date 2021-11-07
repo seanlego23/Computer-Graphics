@@ -50,7 +50,7 @@ float Road::calculateIntersection(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm:
 		return (p4.z - u * diffZ2 - p1.z) / diffZ1;
 }
 
-void Road::calculateOffset(std::vector<glm::vec3>& offsetPoints, bool positiveOffset) {
+bool Road::calculateOffset(std::vector<glm::vec3>& offsetPoints, bool positiveOffset) {
 	glm::vec3 signedOffsetDir[2] = {(positiveOffset ? 1.0f : -1.0f) * offsetDir[0], (positiveOffset ? 1.0f : -1.0f) * offsetDir[1]};
 
 	auto [curvePoints, numOfCurvePoints] = centerCurve->getPoints();
@@ -93,11 +93,27 @@ void Road::calculateOffset(std::vector<glm::vec3>& offsetPoints, bool positiveOf
 
 	//Join all of the offset curves including trimming and extending curves to meet.
 	for (int i = 0; i < numOfCurvePoints - 2; i++) {
-		glm::vec3 p1 = glm::vec3(offsetCurves[i * 6], offsetCurves[i * 6 + 1], offsetCurves[i * 6 + 2]);
+		glm::vec3 p1 = offsetPoints.back();
 		glm::vec3 p2 = glm::vec3(offsetCurves[i * 6 + 3], offsetCurves[i * 6 + 4], offsetCurves[i * 6 + 5]);
-		t = calculateIntersection(p1, p2,
-								  glm::vec3(offsetCurves[i * 6 + 6], offsetCurves[i * 6 + 7], offsetCurves[i * 6 + 8]),
-								  glm::vec3(offsetCurves[i * 6 + 9], offsetCurves[i * 6 + 10], offsetCurves[i * 6 + 11]));
+		glm::vec3 p3 = glm::vec3(offsetCurves[i * 6 + 6], offsetCurves[i * 6 + 7], offsetCurves[i * 6 + 8]);
+		glm::vec3 p4 = glm::vec3(offsetCurves[i * 6 + 9], offsetCurves[i * 6 + 10], offsetCurves[i * 6 + 11]);
+		
+		if (glm::length(p3 - p2) < 1e-6) {
+			offsetPoints.push_back(p2);
+			continue;
+		}
+		t = calculateIntersection(p1, p2, p3, p4);
+
+		if (t < 0) {
+			while (t < 0) {
+				offsetPoints.pop_back();
+				if (!offsetPoints.size())
+					return false;
+				p2 = p1;
+				p1 = offsetPoints.back();
+				t = calculateIntersection(p1, p2, p3, p4);
+			}
+		}
 
 		offsetPoints.push_back(p1 + t * (p2 - p1));
 	}
@@ -110,6 +126,7 @@ void Road::calculateOffset(std::vector<glm::vec3>& offsetPoints, bool positiveOf
 	offsetPoints.push_back(end + t * signedOffsetDir[1]);
 
 	delete[] offsetCurves;
+	return true;
 }
 
 Road::Road(Material* m, glm::mat4 xForm, Line* curve, glm::vec3 startNormal, glm::vec3 startOffsetDir, glm::vec3 endOffsetDir, float offset,
