@@ -33,6 +33,8 @@ public:
 
 	std::pair<float*, unsigned int> getPoints() { return {points, numOfPoints}; }
 
+	unsigned int getNumOfPoints() { return numOfPoints; }
+
 	virtual glm::vec3 getStartPoint() { return glm::vec3(points[0], points[1], points[2]); }
 
 	virtual glm::vec3 getEndPoint() { return glm::vec3(points[3], points[4], points[5]); }
