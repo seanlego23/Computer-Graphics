@@ -5,7 +5,7 @@
 void BezierCurve::calculateLines() {
 	using namespace std;
 
-	for (auto [t, point] = tuple{0.0f, 0}; t <= 1; t += precision, point++) {
+	for (auto [t, point] = tuple{0.0f, 0}; t < 1.0f + precision / 2.0f; t += precision, point++) {
 		float x = 0, y = 0, z = 0;
 		for (int i = 0; i < numOfControlPoints; i++) {
 			//use 1e-5 as numerical tolerance
@@ -32,7 +32,7 @@ BezierCurve::BezierCurve(Material* m, glm::mat4 xForm, glm::vec3 startPoint, glm
 	controlPoints = cPoints;
 	numOfControlPoints = n;
 
-	numOfPoints = 1.0f / precision + 1.0f;
+	numOfPoints = round(1.0f / precision) + 1.0f;
 	points = new float[(long long) numOfPoints * 3];
 
 	calculateLines();
