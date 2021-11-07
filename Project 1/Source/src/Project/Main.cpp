@@ -346,19 +346,19 @@ int main() {
     scene.addRenderer(&torus3);
 
     glm::mat4 justAbove = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.001f));
-    BezierCurve line(Material::materials["curve"], justAbove, glm::vec3(-4.0f, -6.0f, 0.0f), glm::vec3(3.0f, 5.0f, 0.0f), 2e-1, fourPointRectangle);
+    BezierCurve line(Material::materials["curve"], justAbove, glm::vec3(-4.0f, -6.0f, 0.0f), glm::vec3(3.0f, 5.0f, 0.0f), 1.0f/100.0f, fourPointRectangle);
     BezierCurve line2(Material::materials["curve"], justAbove, glm::vec3(3.0f, 5.0f, 0.0f), glm::vec3(7.0f, 8.0f, 0.0f), 2e-2, fourPointRectangle);
     Line line3(Material::materials["curve"], justAbove, glm::vec3(7.0f, 8.0f, 0.0f), glm::vec3(7.0f, 13.0f, 0.0f));
 
     glm::vec3 up(0.0f, 0.0f, 1.0f);
     glm::vec3 left(-1.0f, 0.0f, 0.0f);
-    Road road(Material::materials["road"], glm::mat4(1.0f), &line, up, left, left, 1.0f, 0.5f, true);
+    Road road(Material::materials["road"], glm::mat4(1.0f), &line, up, left, left, 1.0f, 0.2f, true);
     scene.addRenderer(&road);
 
-    Road road2(Material::materials["road"], glm::mat4(1.0f), &line2, up, left, left, 1.0f, 0.5f, false);
+    Road road2(Material::materials["road"], glm::mat4(1.0f), &line2, up, left, left, 1.0f, 0.2f, false);
     scene.addRenderer(&road2);
 
-    Road road3(Material::materials["road"], glm::mat4(1.0f), &line3, up, left, left, 1.0f, 0.5f, false);
+    Road road3(Material::materials["road"], glm::mat4(1.0f), &line3, up, left, left, 1.0f, 0.2f, false);
     scene.addRenderer(&road3);
 
     glm::mat4 cTransform = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f));
