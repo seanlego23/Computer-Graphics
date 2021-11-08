@@ -11,11 +11,9 @@ public:
 
 	PolyLine() = delete;
 
-	PolyLine(const PolyLine& rhs);
-
-	PolyLine(const PolyLine& rhs, Material* m, glm::mat4 xForm);
-
 	PolyLine(Material* m, glm::mat4 xForm, unsigned int nPoints, glm::vec3 pts...);
+
+	PolyLine(const PolyLine& rhs);
 
 	glm::vec3 getPoint(unsigned int index) {
 		assert(index >= 0 || index < this->getNumOfPoints());
