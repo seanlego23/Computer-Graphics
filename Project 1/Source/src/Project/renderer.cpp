@@ -2,6 +2,9 @@
 
 void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) { // here's where the "actual drawing" gets done
 
+    if (isDirty)
+        renderUpdate();
+
     glm::mat4 mvp;
 
     unsigned int shaderID = material->use();
