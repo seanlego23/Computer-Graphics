@@ -11,6 +11,10 @@ void Line::init(glm::vec3 start, glm::vec3 end) {
 	points[4] = end.y;
 	points[5] = end.z;
 
+	options.renderType = GL_LINES;
+	options.count = 2;
+	options.indexed = false;
+
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, VBO);
 
@@ -24,38 +28,9 @@ void Line::init(glm::vec3 start, glm::vec3 end) {
 	glBindVertexArray(0);
 }
 
-void Line::update() {
+void Line::renderUpdate() {
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, (unsigned long long)numOfPoints * 3 * sizeof(float), points);
 	glBindVertexArray(0);
-}
-
-void Line::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) {
-	glm::mat4 mvp;
-
-	unsigned int shaderID = material->use();
-
-	mvp = pMat * vMat * modelMatrix;
-
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "m"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "v"), 1, GL_FALSE, glm::value_ptr(vMat));
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "p"), 1, GL_FALSE, glm::value_ptr(pMat));
-
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
-	glUniform1i(glGetUniformLocation(shaderID, "instances"), instance_count);
-
-	glUniform4f(glGetUniformLocation(shaderID, "material.ambient"), material->ambient.r, material->ambient.g, material->ambient.b, material->ambient.a);
-	glUniform4f(glGetUniformLocation(shaderID, "material.diffuse"), material->diffuse.r, material->diffuse.g, material->diffuse.b, material->diffuse.a);
-	glUniform4f(glGetUniformLocation(shaderID, "material.specular"), material->specular.r, material->specular.g, material->specular.b, material->specular.a);
-	glUniform1f(glGetUniformLocation(shaderID, "material.shininess"), material->shininess);
-	if (material->getTextureID()) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, material->getTextureID());
-		glUniform1i(glGetUniformLocation(shaderID, "material.texture"), 0);
-	}
-
-	glBindVertexArray(VAO);
-
-	glDrawArrays(GL_LINES, 0, 2);
 }

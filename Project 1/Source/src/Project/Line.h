@@ -46,25 +46,21 @@ public:
 
 	virtual glm::vec3 getEndPoint() { return glm::vec3(points[3], points[4], points[5]); }
 
-	virtual void update();
+	virtual void renderUpdate();
 
 	virtual void setStartPoint(glm::vec3 start) {
 		points[0] = start.x;
 		points[1] = start.y;
 		points[2] = start.z;
-
-		Line::update();
+		dirty = true;
 	}
 
 	virtual void setEndPoint(glm::vec3 end) {
 		points[3] = end.x;
 		points[4] = end.y;
 		points[5] = end.z;
-
-		Line::update();
+		dirty = true;
 	}
-
-	virtual void render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
 
 };
 
