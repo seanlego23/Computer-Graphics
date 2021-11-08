@@ -244,7 +244,7 @@ Road::Road(Material* m, glm::mat4 xForm, Line* curve, glm::vec3 startNormal, glm
 	glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 	glBufferData(GL_ARRAY_BUFFER, vbovalues.size() * sizeof(float), vbovalues.data(), GL_STATIC_DRAW);
 
-	indexCount = indices.size();
+	options.count = indices.size();
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);

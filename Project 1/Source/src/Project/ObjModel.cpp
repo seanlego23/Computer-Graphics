@@ -56,7 +56,7 @@ ObjModel::ObjModel(Material* m, glm::mat4 xForm, const char* filePath) {
     for (objMesh temp : modelImporter.getMeshes())
         meshes.push_back(temp);
 
-    indexCount = indices.size();
+    options.count = indices.size();
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
     glBufferData(GL_ARRAY_BUFFER, vboValues.size() * sizeof(float), &vboValues[0], GL_STATIC_DRAW);
@@ -78,36 +78,7 @@ ObjModel::ObjModel(Material* m, glm::mat4 xForm, const char* filePath) {
 
 void ObjModel::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) {
     if (meshes.size() == 0) {
-        glm::mat4 mvp;
-
-        unsigned int shaderID = material->use();
-
-        mvp = pMat * vMat * modelMatrix;
-
-        glUniformMatrix4fv(glGetUniformLocation(shaderID, "m"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
-        glUniformMatrix4fv(glGetUniformLocation(shaderID, "v"), 1, GL_FALSE, glm::value_ptr(vMat));
-        glUniformMatrix4fv(glGetUniformLocation(shaderID, "p"), 1, GL_FALSE, glm::value_ptr(pMat));
-
-        glUniformMatrix4fv(glGetUniformLocation(shaderID, "mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
-
-        glUniform4f(glGetUniformLocation(shaderID, "material.ambient"), material->ambient.r, material->ambient.g, material->ambient.b, material->ambient.a);
-        glUniform4f(glGetUniformLocation(shaderID, "material.diffuse"), material->diffuse.r, material->diffuse.g, material->diffuse.b, material->diffuse.a);
-        glUniform4f(glGetUniformLocation(shaderID, "material.specular"), material->specular.r, material->specular.g, material->specular.b, material->specular.a);
-        glUniform1f(glGetUniformLocation(shaderID, "material.shininess"), material->shininess);
-        if (material->getTextureID()) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, material->getTextureID());
-            glUniform1i(glGetUniformLocation(shaderID, "material.texture"), 0);
-        }
-        glUniform1d(glGetUniformLocation(shaderID, "elapsedTime"), elapsedTime += deltaTime);
-
-        glBindVertexArray(VAO);
-
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glFrontFace(GL_CCW);
-
-        glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0, instance_count);
+        renderer::render(vMat, pMat, deltaTime, sg);
     } else {
         for (int i = 0; i < meshes.size(); i++) {
 
@@ -139,16 +110,16 @@ void ObjModel::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGra
 
             glBindVertexArray(VAO);
 
-            /*glEnable(GL_CULL_FACE);
+            glEnable(GL_CULL_FACE);
             glCullFace(GL_BACK);
-            glFrontFace(GL_CCW);*/
+            glFrontFace(GL_CCW);
 
-            unsigned int endingVert = indexCount;
+            unsigned int endingVert = options.count;
 
             if ((i + 1) < meshes.size())
                 endingVert = meshes[i + 1].startingVertex;
 
-            glDrawElementsInstanced(GL_TRIANGLES, endingVert - meshes[i].startingVertex, GL_UNSIGNED_INT, (void*) (meshes[i].startingVertex * sizeof(unsigned int)), instance_count);
+            glDrawElementsInstanced(options.renderType, endingVert - meshes[i].startingVertex, options.indexType, (void*)(meshes[i].startingVertex * sizeof(unsigned int)), options.instance_count);
         }
     }
 }

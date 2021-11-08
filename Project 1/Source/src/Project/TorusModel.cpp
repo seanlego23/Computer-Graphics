@@ -92,7 +92,7 @@ TorusModel::TorusModel(float holeRadius, float crossXRadius, glm::mat4 xForm, Ma
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(float), indices.data(), GL_STATIC_DRAW);
 
-	indexCount = indices.size();
+	options.count = indices.size();
 
 	glBindVertexArray(0);
 }
