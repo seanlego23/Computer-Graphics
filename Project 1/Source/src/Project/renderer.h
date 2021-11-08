@@ -17,16 +17,27 @@ class renderer {
 
 protected:
 
+    std::string name;
     bool instanced = false;
     unsigned int instance_count = 1;
     unsigned int VBO[8] = {}, VAO = 0, EBO = 0;
     unsigned int indexCount = 0;
     double elapsedTime = 0;
 
-    Material* material;
-    glm::mat4 modelMatrix;
+    Material* material = nullptr;
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
+
+    renderer() { }
 
 public:
+
+    renderer(Material* m, glm::mat4 xForm, std::string name) {
+        material = m;
+        modelMatrix = xForm;
+        this->name = name;
+    }
+
+    renderer(const renderer& rhs) : material(rhs.material), modelMatrix(rhs.modelMatrix), name(rhs.name + " Copy") { }
 
     virtual ~renderer() { }
 
