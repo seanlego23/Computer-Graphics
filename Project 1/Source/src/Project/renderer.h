@@ -19,6 +19,7 @@ protected:
 
     std::string name;
     bool instanced = false;
+    bool isDirty = false;
     unsigned int instance_count = 1;
     unsigned int VBO[8] = {}, VAO = 0, EBO = 0;
     unsigned int indexCount = 0;
@@ -43,6 +44,11 @@ public:
 
     bool isInstanced() {
         return instanced;
+    }
+
+    //If the geometry has been updated, then this function will return true
+    bool isDirty() {
+        return isDirty;
     }
 
     void setInstanced(bool inst) {
@@ -72,6 +78,8 @@ public:
     void scale(const float scale[]) {
         modelMatrix = glm::scale(modelMatrix, glm::vec3(scale[0], scale[1], scale[2]));
     }
+
+    virtual void renderUpdate() { isDirty = false; }
 
     virtual void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
 
