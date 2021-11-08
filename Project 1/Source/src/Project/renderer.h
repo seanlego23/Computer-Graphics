@@ -81,7 +81,7 @@ public:
 
     virtual void renderUpdate() { isDirty = false; }
 
-    virtual void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
+    virtual void render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
 
     virtual void OnTransform(glm::mat4 oldModel, glm::mat4 newModel) { }
 };
