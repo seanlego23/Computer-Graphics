@@ -42,6 +42,8 @@ public:
 
 	model() : modelID(++modelIDCounter), attachedModels(&attachment::compare) { }
 
+	model(const model& rhs) : renderer(rhs), modelID(++modelIDCounter), attachedModels(&attachment::compare) {	}
+
 	virtual ~model() { }
 
 	virtual void update() { }

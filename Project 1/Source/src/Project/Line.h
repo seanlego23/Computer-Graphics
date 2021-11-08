@@ -1,4 +1,6 @@
 #pragma once
+#pragma warning(push)
+#pragma warning(disable : 26451)
 
 #include "model.h"
 
@@ -24,6 +26,11 @@ public:
 		modelMatrix = xForm;
 
 		init(start, end);
+	}
+
+	Line(const Line& rhs) : model(rhs), numOfPoints(rhs.numOfPoints) {
+		points = new float[numOfPoints * 3];
+		memcpy(points, rhs.points, numOfPoints * 3 * sizeof(float));
 	}
 
 	virtual ~Line() {
@@ -60,3 +67,5 @@ public:
 	virtual void render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
 
 };
+
+#pragma warning(pop)
