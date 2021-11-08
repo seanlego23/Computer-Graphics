@@ -13,18 +13,26 @@
 
 class SceneGraph;
 
+struct renderOptions {
+    bool instanced;
+    bool indexed;
+    GLenum renderType;
+    GLenum indexType;
+    unsigned int instance_count;
+    unsigned int count;
+    unsigned int array_offset; //Only used if indexed is false
+};
+
 class renderer {
 
 protected:
 
     std::string name;
-    bool instanced = false;
-    bool isDirty = false;
-    unsigned int instance_count = 1;
+    bool dirty = false;
     unsigned int VBO[8] = {}, VAO = 0, EBO = 0;
-    unsigned int indexCount = 0;
     double elapsedTime = 0;
 
+    renderOptions options = {false, true, GL_TRIANGLES, GL_UNSIGNED_INT, 1, 0, 0};
     Material* material = nullptr;
     glm::mat4 modelMatrix = glm::mat4(1.0f);
 
@@ -43,24 +51,24 @@ public:
     virtual ~renderer() { }
 
     bool isInstanced() {
-        return instanced;
+        return options.instanced;
     }
 
     //If the geometry has been updated, then this function will return true
     bool isDirty() {
-        return isDirty;
+        return dirty;
     }
 
     void setInstanced(bool inst) {
-        instanced = inst;
+        options.instanced = inst;
     }
 
     unsigned int getInstanceCount() {
-        return instance_count;
+        return options.instance_count;
     }
 
     void setInstanceCount(unsigned int count) {
-        instance_count = count;
+        options.instance_count = count;
     }
 
     void setXForm(glm::mat4 mat) {
@@ -79,7 +87,7 @@ public:
         modelMatrix = glm::scale(modelMatrix, glm::vec3(scale[0], scale[1], scale[2]));
     }
 
-    virtual void renderUpdate() { isDirty = false; }
+    virtual void renderUpdate() { dirty = false; }
 
     virtual void render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
 

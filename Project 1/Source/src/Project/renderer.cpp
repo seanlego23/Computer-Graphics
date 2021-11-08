@@ -2,7 +2,7 @@
 
 void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) { // here's where the "actual drawing" gets done
 
-    if (isDirty)
+    if (dirty)
         renderUpdate();
 
     glm::mat4 mvp;
@@ -16,7 +16,7 @@ void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGra
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "p"), 1, GL_FALSE, glm::value_ptr(pMat));
 
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
-    glUniform1i(glGetUniformLocation(shaderID, "instances"), instance_count);
+    glUniform1i(glGetUniformLocation(shaderID, "instances"), options.instance_count);
 
     sg->light->use(shaderID);
     glUniform3f(glGetUniformLocation(shaderID, "cameraPos"), sg->camera.position.x, sg->camera.position.y, sg->camera.position.z);
@@ -39,8 +39,15 @@ void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGra
 
     glBindVertexArray(VAO);
 
-    if (!instanced)
-        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-    else
-        glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0, instance_count);
+    if (options.indexed) {
+        if (!options.instanced)
+            glDrawElements(options.renderType, options.count, options.indexType, (void*)0);
+        else
+            glDrawElementsInstanced(options.renderType, options.count, options.indexType, (void*)0, options.instance_count);
+    } else {
+        if (!options.instanced)
+            glDrawArrays(options.renderType, options.array_offset, options.count);
+        else 
+            glDrawArraysInstanced(options.renderType, options.array_offset, options.count, options.instance_count);
+    }
 }
