@@ -5,11 +5,12 @@
 #include "Line.h"
 #include "Material.h"
 
-class PolyLine : public Line { 
+class PolyLine : public Line {
+protected:
+
+	PolyLine() { }
 
 public:
-
-	PolyLine() = delete;
 
 	PolyLine(Material* m, glm::mat4 xForm, unsigned int nPoints, glm::vec3 pts...);
 
