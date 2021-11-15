@@ -13,7 +13,7 @@ class Shader
 {
 public:
 
-    static std::map<std::string, Shader*> shaders;
+    static std::map<std::string, std::shared_ptr<Shader>> shaders;
 
     bool hasGeometryShader;
     unsigned int ID;
@@ -22,13 +22,12 @@ public:
     const char* fragmentPath;
     std::string name;
 
-public:
     char vtext[4096], gtext[4096], ftext[4096];
 
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
 
-    Shader() {}
+    Shader() = delete;
 
 private:
 
@@ -80,7 +79,7 @@ private:
         memcpy(ftext, fragmentCode.c_str(), fragmentCode.length());
         ftext[fragmentCode.length()] = 0;
 
-        shaders[name] = this;
+        shaders[name] = std::shared_ptr<Shader>(this);
 
         reload();
     }

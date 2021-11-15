@@ -24,16 +24,16 @@
 #include <vector>
 #include <filesystem>
 
-#include "Camera.h"
-#include "shader_s.h"
-#include "renderer.h"
-#include "Material.h"
-#include "SceneGraph.h"
+#include "Architecture\Camera.h"
+#include "Architecture\shader_s.h"
+#include "Architecture\renderer.h"
+#include "Architecture\Material.h"
+#include "Architecture\SceneGraph.h"
 
-#include "BezierCurve.h"
-#include "QuadRenderer.h"
-#include "CubeRenderer.h"
-#include "TorusModel.h"
+#include "Architecture\BezierCurve.h"
+#include "Architecture\QuadRenderer.h"
+#include "Architecture\CubeRenderer.h"
+#include "Architecture\TorusModel.h"
 #include "Car.h"
 #include "Road.h"
 
@@ -155,7 +155,7 @@ void drawIMGUI(renderer* myRenderer, SceneGraph* sg) {
         if (ImGui::BeginTabBar("Shaders")) {
             for (const auto& [key, val] : Shader::shaders) {
                 if (ImGui::BeginTabItem(val->name.c_str())) {
-                    editShader = val;
+                    editShader = val.get();
                     ImGui::EndTabItem();
                 }
             }
@@ -334,38 +334,38 @@ int main() {
 
     SceneGraph scene(camera, &light);
 
-    TorusModel torus(1.2f, 0.5f, glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-4.0f, -6.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), Material::materials["torus"]);
+    TorusModel torus(Material::materials["torus"], glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-4.0f, -6.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), "Torus1", 1.2f, 0.5f);
     scene.addRenderer(&torus);
 
-    TorusModel torus2(1.2f, 0.5f, glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, 5.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), Material::materials["litMaterial"]);
+    TorusModel torus2(Material::materials["litMaterial"], glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, 5.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), "Torus2", 1.2f, 0.5f);
     scene.addRenderer(&torus2);
 
     glm::mat4 t3transform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     t3transform = glm::translate(glm::mat4(1.0f), glm::vec3(7.0f, 8.0f, 0.0f)) * t3transform;
-    TorusModel torus3(2.0f, 0.25f, t3transform, Material::materials["moveTorus"]);
+    TorusModel torus3(Material::materials["moveTorus"], t3transform, "Torus3", 2.0f, 0.25f);
     scene.addRenderer(&torus3);
 
     glm::mat4 justAbove = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.001f));
-    BezierCurve line(Material::materials["curve"], justAbove, glm::vec3(-4.0f, -6.0f, 0.0f), glm::vec3(3.0f, 5.0f, 0.0f), 1.0f/100.0f, fourPointRectangle);
-    BezierCurve line2(Material::materials["curve"], justAbove, glm::vec3(3.0f, 5.0f, 0.0f), glm::vec3(7.0f, 8.0f, 0.0f), 2e-2, fourPointRectangle);
-    Line line3(Material::materials["curve"], justAbove, glm::vec3(7.0f, 8.0f, 0.0f), glm::vec3(7.0f, 13.0f, 0.0f));
+    BezierCurve line(Material::materials["curve"], justAbove, "Curve1", glm::vec3(-4.0f, -6.0f, 0.0f), glm::vec3(3.0f, 5.0f, 0.0f), 1.0f / 100.0f, fourPointRectangle);
+    BezierCurve line2(Material::materials["curve"], justAbove, "Curve2", glm::vec3(3.0f, 5.0f, 0.0f), glm::vec3(7.0f, 8.0f, 0.0f), 2e-2, fourPointRectangle);
+    Line line3(Material::materials["curve"], justAbove, "Curve3", glm::vec3(7.0f, 8.0f, 0.0f), glm::vec3(7.0f, 13.0f, 0.0f));
 
     glm::vec3 up(0.0f, 0.0f, 1.0f);
     glm::vec3 left(-1.0f, 0.0f, 0.0f);
-    Road road(Material::materials["road"], glm::mat4(1.0f), &line, up, left, left, 1.0f, 0.2f, true);
+    Road road(Material::materials["road"], glm::mat4(1.0f), "Road1", & line, up, left, left, 1.0f, 0.2f, true);
     scene.addRenderer(&road);
 
-    Road road2(Material::materials["road"], glm::mat4(1.0f), &line2, up, left, left, 1.0f, 0.2f, false);
+    Road road2(Material::materials["road"], glm::mat4(1.0f), "Road2", & line2, up, left, left, 1.0f, 0.2f, false);
     scene.addRenderer(&road2);
 
-    Road road3(Material::materials["road"], glm::mat4(1.0f), &line3, up, left, left, 1.0f, 0.2f, false);
+    Road road3(Material::materials["road"], glm::mat4(1.0f), "Road3", & line3, up, left, left, 1.0f, 0.2f, false);
     scene.addRenderer(&road3);
 
     glm::mat4 cTransform = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f));
     cTransform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * cTransform;
     cTransform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), up) * cTransform;
     cTransform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.5f, 0.0f)) * cTransform;
-    Car car(nullptr, cTransform, "data/car/Jeep_Renegade_2016.obj", 2.0f);
+    Car car(Material::materials["litMaterial"], cTransform, "Car", "data/car/Jeep_Renegade_2016.obj", 2.0f);
     scene.addRenderer(&car);
 
     // render loop
@@ -442,11 +442,6 @@ int main() {
     // ------------------------------------------------------------------
     glfwTerminate();
 
-    for (auto [str, s] : Shader::shaders)
-        delete s;
-
-    for (auto [str, m] : Material::materials)
-        delete m;
     return 0;
 }
 

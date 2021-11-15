@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ObjModel.h"
+#include "Architecture\ObjModel.h"
 
 class Car : public ObjModel {
 
@@ -8,7 +8,7 @@ class Car : public ObjModel {
 
 public:
 
-	Car(Material* m, glm::mat4 xForm, const char* file, float s) : ObjModel(m, xForm, file), speed(s) { }
+	Car(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, const char* file, float s) : ObjModel(m, xForm, name, file), speed(s) { }
 
 	float getSpeed() const { return speed; }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -20,10 +21,28 @@ struct renderOptions {
     GLenum indexType;
     unsigned int instance_count;
     unsigned int count;
-    unsigned int array_offset; //Only used if indexed is false
+    unsigned int offset;
 };
 
 class renderer {
+private:
+
+    struct shaderVariable {
+        const char* name;
+        GLenum type;
+        unsigned int count;
+        unsigned int array_count;
+        unsigned char col;
+        unsigned char row;
+        bool transpose;
+        bool matrix;
+        void* var;
+    };
+
+    std::vector<shaderVariable> shaderVariables;
+
+    std::shared_ptr<Material> material;
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
 
 protected:
 
@@ -33,22 +52,30 @@ protected:
     double elapsedTime = 0;
 
     renderOptions options = {false, true, GL_TRIANGLES, GL_UNSIGNED_INT, 1, 0, 0};
-    Material* material = nullptr;
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-
-    renderer() { }
 
 public:
 
-    renderer(Material* m, glm::mat4 xForm, std::string name) {
-        material = m;
-        modelMatrix = xForm;
-        this->name = name;
-    }
+    renderer() = delete;
+
+    renderer(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : material(m), modelMatrix(xForm), name(name) { }
 
     renderer(const renderer& rhs) : material(rhs.material), modelMatrix(rhs.modelMatrix), name(rhs.name + " Copy") { }
 
     virtual ~renderer() { }
+
+protected:
+
+    void pushShaderVariable(const char* name, GLenum type, unsigned int count, const void* var);
+
+    void pushShaderVariableArray(const char* name, GLenum type, unsigned int arrayCount, unsigned int count, const void* var);
+
+    void pushShaderMatrixArray(const char* name, unsigned int arrayCount, unsigned char col, unsigned char row, bool transpose, const GLfloat *var);
+
+private:
+
+    void useShaderVariables(unsigned int shaderID);
+
+public:
 
     bool isInstanced() {
         return options.instanced;
@@ -70,6 +97,12 @@ public:
     void setInstanceCount(unsigned int count) {
         options.instance_count = count;
     }
+
+    std::shared_ptr<Material> getMaterial() { return material; }
+
+    void setMaterial(std::shared_ptr<Material> m) { material = m; }
+
+    glm::mat4 getXForm() { return modelMatrix; }
 
     void setXForm(glm::mat4 mat) {
         modelMatrix = mat;

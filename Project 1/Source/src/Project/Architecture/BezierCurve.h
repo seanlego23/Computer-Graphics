@@ -44,7 +44,9 @@ private:
 
 public:
 
-	BezierCurve(Material* m, glm::mat4 xForm, glm::vec3 startPoint, glm::vec3 endPoint, float prec, calcFnc calcPoints);
+	BezierCurve() = delete;
+
+	BezierCurve(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, glm::vec3 startPoint, glm::vec3 endPoint, float prec, calcFnc calcPoints);
 
 	virtual ~BezierCurve() {
 		delete[] controlPoints;

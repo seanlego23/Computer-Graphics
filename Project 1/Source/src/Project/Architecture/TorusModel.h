@@ -14,6 +14,8 @@ class TorusModel : public model {
 	
 public:
 
-	TorusModel(float holeRadius, float crossXRadius, glm::mat4 xForm, Material* m);
+	TorusModel() = delete;
+
+	TorusModel(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, float holeRadius, float crossXRadius);
 
 };

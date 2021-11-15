@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <set>
 
@@ -40,7 +41,10 @@ public:
 
 	const unsigned long modelID;
 
-	model() : modelID(++modelIDCounter), attachedModels(&attachment::compare) { }
+	model() = delete;
+
+	model(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : renderer(m, xForm, name), modelID(++modelIDCounter), 
+		attachedModels(&attachment::compare) { }
 
 	model(const model& rhs) : renderer(rhs), modelID(++modelIDCounter), attachedModels(&attachment::compare) {	}
 

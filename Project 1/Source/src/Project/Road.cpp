@@ -1,5 +1,5 @@
 #include "Road.h"
-#include "SceneGraph.h"
+#include "Architecture\SceneGraph.h"
 
 #pragma warning(push)
 #pragma warning(disable : 6001 6386 6385 26451)
@@ -129,11 +129,9 @@ bool Road::calculateOffset(std::vector<glm::vec3>& offsetPoints, bool positiveOf
 	return true;
 }
 
-Road::Road(Material* m, glm::mat4 xForm, Line* curve, glm::vec3 startNormal, glm::vec3 startOffsetDir, glm::vec3 endOffsetDir, float offset,
-		   float texturePrecision, bool renderCurve) : centerCurve(curve), normal(startNormal), offsetDir{startOffsetDir, endOffsetDir}, 
-		   curveOffset(offset), renderCenterCurve(renderCurve) {
-	material = m;
-	modelMatrix = xForm;
+Road::Road(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, Line* curve, glm::vec3 startNormal, glm::vec3 startOffsetDir, 
+		   glm::vec3 endOffsetDir, float offset, float texturePrecision, bool renderCurve) : model(m, xForm, name), centerCurve(curve), 
+		normal(startNormal), offsetDir{startOffsetDir, endOffsetDir}, curveOffset(offset), renderCenterCurve(renderCurve) {
 
 	std::vector<glm::vec3> side1OffsetPoints, side2OffsetPoints;
 	calculateOffset(side1OffsetPoints, true);
@@ -265,7 +263,7 @@ void Road::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* 
 	renderer::render(vMat, pMat, deltaTime, sg);
 
 	if (renderCenterCurve) {
-		centerCurve->setXForm(this->modelMatrix);
+		centerCurve->setXForm(getXForm());
 		centerCurve->render(vMat, pMat, deltaTime, sg);
 	}
 }

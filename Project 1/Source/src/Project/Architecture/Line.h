@@ -13,7 +13,7 @@ protected:
 	float* points = nullptr;
 	unsigned int numOfPoints = 2;
 
-	Line() { }
+	Line(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : model(m, xForm, name) { }
 
 private:
 
@@ -21,10 +21,9 @@ private:
 
 public:
 
-	Line(Material* m, glm::mat4 xForm, glm::vec3 start, glm::vec3 end) {
-		material = m;
-		modelMatrix = xForm;
+	Line() = delete;
 
+	Line(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, glm::vec3 start, glm::vec3 end) : model(m, xForm, name) {
 		init(start, end);
 	}
 

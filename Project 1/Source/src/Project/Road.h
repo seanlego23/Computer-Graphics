@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "Line.h"
-#include "model.h"
+#include "Architecture\Line.h"
+#include "Architecture\model.h"
 
 class Road : public model {
 	
@@ -20,8 +20,8 @@ class Road : public model {
 public:
 
 	//Texture precision means the texture coords will increment by texturePrecision every unit length
-	Road(Material* m, glm::mat4 xForm, Line* curve, glm::vec3 startNormal, glm::vec3 startOffsetDir, glm::vec3 endOffsetDir, float offset,
-		 float texturePrecision, bool renderCurve);
+	Road(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, Line* curve, glm::vec3 startNormal, glm::vec3 startOffsetDir, 
+		 glm::vec3 endOffsetDir, float offset, float texturePrecision, bool renderCurve);
 
 	virtual void render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
 

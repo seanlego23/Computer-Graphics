@@ -18,10 +18,7 @@ std::vector<glm::vec3> ModelImporter::getNormals() { return normals; }
 
 std::vector<objMesh> ModelImporter::getMeshes() { return meshes; }
 
-ObjModel::ObjModel(Material* m, glm::mat4 xForm, const char* filePath) {
-    material = m;
-    modelMatrix = xForm;
-
+void ObjModel::init(const char* file) { 
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
@@ -29,7 +26,7 @@ ObjModel::ObjModel(Material* m, glm::mat4 xForm, const char* filePath) {
     glGenBuffers(1, &EBO);
 
     ModelImporter modelImporter = ModelImporter();
-    modelImporter.parseObj(filePath);
+    modelImporter.parseObj(file);
 
     const std::vector<glm::vec3>& vertices = modelImporter.getVertices();
     const std::vector<glm::vec2>& texureCoords = modelImporter.getTextureCoordinates();
@@ -74,53 +71,38 @@ ObjModel::ObjModel(Material* m, glm::mat4 xForm, const char* filePath) {
     glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
+}
+
+ObjModel::ObjModel(std::shared_ptr<Material> m, glm::mat4 xForm, const char* file) : model(m, xForm, file) { 
+    init(file);
+}
+
+ObjModel::ObjModel(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, const char* file) : model(m, xForm, name) {
+    init(file);
 };
 
 void ObjModel::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) {
     if (meshes.size() == 0) {
         renderer::render(vMat, pMat, deltaTime, sg);
     } else {
+        std::shared_ptr<Material> temp = getMaterial();
+        unsigned int totalVertices = options.count;
         for (int i = 0; i < meshes.size(); i++) {
 
-            glm::mat4 mvp;
+            setMaterial(Material::materials[meshes[i].name]);
 
-            Material *m = Material::materials[meshes[i].name];
-            unsigned int shaderID = m->use();
-
-            mvp = pMat * vMat * modelMatrix;
-
-            glUniformMatrix4fv(glGetUniformLocation(shaderID, "m"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
-            glUniformMatrix4fv(glGetUniformLocation(shaderID, "v"), 1, GL_FALSE, glm::value_ptr(vMat));
-            glUniformMatrix4fv(glGetUniformLocation(shaderID, "p"), 1, GL_FALSE, glm::value_ptr(pMat));
-
-            glUniformMatrix4fv(glGetUniformLocation(shaderID, "mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
-
-            glUniform4f(glGetUniformLocation(shaderID, "material.ambient"), m->ambient.r, m->ambient.g, m->ambient.b, m->ambient.a);
-            glUniform4f(glGetUniformLocation(shaderID, "material.diffuse"), m->diffuse.r, m->diffuse.g, m->diffuse.b, m->diffuse.a);
-            glUniform4f(glGetUniformLocation(shaderID, "material.specular"), m->specular.r, m->specular.g, m->specular.b, m->specular.a);
-            glUniform1f(glGetUniformLocation(shaderID, "material.shininess"), m->shininess);
-            if (m->getTextureID()) {
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, m->getTextureID());
-                glUniform1i(glGetUniformLocation(shaderID, "material.texture"), 0);
-                glUniform1i(glGetUniformLocation(shaderID, "material.useTexture"), 1);
-            } else
-                glUniform1i(glGetUniformLocation(shaderID, "material.useTexture"), 0);
-            glUniform1d(glGetUniformLocation(shaderID, "elapsedTime"), elapsedTime += deltaTime);
-
-            glBindVertexArray(VAO);
-
-            glEnable(GL_CULL_FACE);
-            glCullFace(GL_BACK);
-            glFrontFace(GL_CCW);
-
-            unsigned int endingVert = options.count;
+            unsigned int endingVert = totalVertices;
 
             if ((i + 1) < meshes.size())
                 endingVert = meshes[i + 1].startingVertex;
 
-            glDrawElementsInstanced(options.renderType, endingVert - meshes[i].startingVertex, options.indexType, (void*)(meshes[i].startingVertex * sizeof(unsigned int)), options.instance_count);
+            options.count = endingVert - meshes[i].startingVertex;
+            options.offset = meshes[i].startingVertex * sizeof(unsigned int);
+
+            renderer::render(vMat, pMat, deltaTime, sg);
         }
+        setMaterial(temp);
+        this->options.count = totalVertices;
     }
 }
 

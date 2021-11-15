@@ -41,9 +41,7 @@ protected:
 
 public:
 
-	CubeRenderer(Material* m, glm::mat4 xForm) {
-		modelMatrix = xForm;
-
+	CubeRenderer(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : model(m, xForm, name) {
 		glGenVertexArrays(1, &VAO);
 		glGenBuffers(1, &VBO[0]);
 		glGenBuffers(1, &EBO);

@@ -6,13 +6,9 @@
 #include "Material.h"
 
 class PolyLine : public Line {
-protected:
-
-	PolyLine() { }
-
 public:
 
-	PolyLine(Material* m, glm::mat4 xForm, unsigned int nPoints, glm::vec3 pts...);
+	PolyLine(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, unsigned int nPoints, glm::vec3 pts...);
 
 	PolyLine(const PolyLine& rhs);
 

@@ -5,10 +5,7 @@
 
 #include "TorusModel.h"
 
-TorusModel::TorusModel(float holeRadius, float crossXRadius, glm::mat4 xForm, Material* m) { 
-	modelMatrix = xForm;
-	material = m;
-
+TorusModel::TorusModel(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, float holeRadius, float crossXRadius) : model(m, xForm, name) {
 	constexpr float precision = glm::pi<float>() / 15.0f; //There will be a point every pi/15 radians or 12 degrees
 	constexpr float twoPi = glm::pi<float>() * 2.0f;
 	const int numOfVertsPerCircle = round(2 * glm::pi<float>() / precision);

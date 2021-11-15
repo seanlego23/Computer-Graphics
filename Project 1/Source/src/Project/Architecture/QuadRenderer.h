@@ -25,11 +25,8 @@ protected:
     };
 
 public:
-    QuadRenderer(glm::mat4 xForm, Material* m) {
+    QuadRenderer(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : model(m, xForm, name) {
         // set up vertex data (and buffer(s)) and configure vertex attributes
-        modelMatrix = xForm;
-
-        material = m;
 
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, VBO);

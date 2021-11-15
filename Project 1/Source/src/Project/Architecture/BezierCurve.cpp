@@ -1,3 +1,4 @@
+#include <string>
 
 #include "BezierCurve.h"
 #include "SceneGraph.h"
@@ -20,9 +21,9 @@ void BezierCurve::calculateLines() {
 	}
 }
 
-BezierCurve::BezierCurve(Material* m, glm::mat4 xForm, glm::vec3 startPoint, glm::vec3 endPoint, float prec, calcFnc calcPoints) { 
-	material = m;
-	modelMatrix = xForm;
+BezierCurve::BezierCurve(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, glm::vec3 startPoint, glm::vec3 endPoint, float prec, 
+						 calcFnc calcPoints) : Line(m, xForm, name) {
+
 	calcPointsFnc = calcPoints;
 	precision = prec; //Precision needs to be as exact as possible
 	start = startPoint;
@@ -36,6 +37,10 @@ BezierCurve::BezierCurve(Material* m, glm::mat4 xForm, glm::vec3 startPoint, glm
 	points = new float[(long long) numOfPoints * 3];
 
 	calculateLines();
+
+	options.renderType = GL_LINE_STRIP;
+	options.count = numOfPoints;
+	options.indexed = false;
 
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, VBO);
@@ -51,36 +56,9 @@ BezierCurve::BezierCurve(Material* m, glm::mat4 xForm, glm::vec3 startPoint, glm
 }
 
 void BezierCurve::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) { 
-	glm::mat4 mvp;
+	this->pushShaderVariable("curvePrecision", GL_FLOAT, 1, &precision);
 
-	unsigned int shaderID = material->use();
-
-	mvp = pMat * vMat * modelMatrix;
-
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "m"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "v"), 1, GL_FALSE, glm::value_ptr(vMat));
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "p"), 1, GL_FALSE, glm::value_ptr(pMat));
-
-	glUniformMatrix4fv(glGetUniformLocation(shaderID, "mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
-
-	glUniform1f(glGetUniformLocation(shaderID, "curvePrecision"), 0.04f);
-
-	if (material != nullptr) {
-		//glUniform4f(glGetUniformLocation(shaderID, "material.ambient"), material->ambient.r, material->ambient.g, material->ambient.b, material->ambient.a);
-		//glUniform4f(glGetUniformLocation(shaderID, "material.ambient"), material->diffuse.r, material->diffuse.g, material->diffuse.b, material->diffuse.a);
-		//glUniform4f(glGetUniformLocation(shaderID, "material.ambient"), material->specular.r, material->specular.g, material->specular.b, material->specular.a);
-		//glUniform1f(glGetUniformLocation(shaderID, "material.shininess"), material->shininess);
-		if (material->getTextureID()) {
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, material->getTextureID());
-			glUniform1i(glGetUniformLocation(shaderID, "material.texture"), 0);
-		}
-	}
-	glUniform1d(glGetUniformLocation(shaderID, "elapsedTime"), elapsedTime += deltaTime);
-
-	glBindVertexArray(VAO);
-
-	glDrawArrays(GL_LINE_STRIP, 0, numOfPoints);
+	renderer::render(vMat, pMat, deltaTime, sg);
 }
 
 std::pair<float*, unsigned int> eightPointRectangle(glm::vec3 start, glm::vec3 end) {

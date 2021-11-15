@@ -42,12 +42,16 @@ public:
 
 class ObjModel : public model { 
 	std::vector<objMesh> meshes;
+
+	void init(const char* file);
 	
 public:
 
 	ObjModel() = delete;
 
-	ObjModel(Material* m, glm::mat4 xForm, const char* file);
+	ObjModel(std::shared_ptr<Material> m, glm::mat4 xForm, const char* file);
+
+	ObjModel(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name, const char* file);
 
 	virtual ~ObjModel() { }
 
