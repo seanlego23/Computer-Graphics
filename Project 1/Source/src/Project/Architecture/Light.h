@@ -8,68 +8,83 @@
 #include <string>
 #include <vector>
 
+#include "Object.h"
+#include "shader_s.h"
+
 #define GENERIC_LIGHT_ID		0
 #define DIRECTIONAL_LIGHT_ID	1
 #define POINT_LIGHT_ID			2
 #define SPOT_LIGHT_ID			3
 
-class Light {
-	const std::string lightName;
+class Light : public Object {
 	const unsigned short type_id;
 
 	bool listed = true;
 
-protected:
-	glm::vec3 ambient;
-	glm::vec3 diffuse;
-	glm::vec3 specular;
-
-	float lightIntensity;
+	glm::vec3 lightColor;
+	
+	float ambientIntensity;
+	float diffuseIntensity;
 
 public:
 
-	static std::vector<Light*> lights;
+	static std::vector<std::shared_ptr<Light>> lights;
 
 	Light() = delete;
 
-	Light(const Light& rhs) : lightName(rhs.lightName + " Copy"), type_id(rhs.type_id), 
-		ambient(rhs.ambient), diffuse(rhs.diffuse), specular(rhs.specular), lightIntensity(rhs.lightIntensity) { }
+	Light(const Light& rhs) : Object(rhs), type_id(rhs.type_id), lightColor(rhs.lightColor), 
+		ambientIntensity(rhs.ambientIntensity), diffuseIntensity(rhs.diffuseIntensity) { 
+		lights.push_back(std::shared_ptr<Light>(this));
+	}
 
-	Light(std::string name, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec, float intensity = 1.0f) : lightName(name), type_id(GENERIC_LIGHT_ID),
-		ambient(amb), diffuse(diff), specular(spec), lightIntensity(intensity) { }
+	Light(std::string name, glm::vec3 color, float ambIntensity = 0.2f, float diffIntensity = 1.0f) : Object(name), type_id(GENERIC_LIGHT_ID),
+		lightColor(color), ambientIntensity(ambIntensity), diffuseIntensity(diffIntensity) { 
+		lights.push_back(std::shared_ptr<Light>(this));
+	}
 
-	Light(std::string name, unsigned short type, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec, float intensity = 1.0f)
-		: lightName(name), type_id(type), ambient(amb), diffuse(diff), specular(spec), lightIntensity(intensity) { }
+protected:
+
+	Light(std::string name, unsigned short type, glm::vec3 color, float ambIntensity = 0.2f, float diffIntensity = 1.0f)
+		: Object(name), type_id(type), lightColor(color), ambientIntensity(ambIntensity), diffuseIntensity(diffIntensity) { 
+		lights.push_back(std::shared_ptr<Light>(this));
+	}
+
+public:
 
 	virtual ~Light() { }
 
-	std::string getName() const { return lightName; }
-
 	unsigned short getTypeID() const { return type_id; }
 
-	glm::vec3 getAmbient() const { return ambient; }
+	glm::vec3 getColor() const { return lightColor; }
 
-	glm::vec3 getDiffuse() const { return diffuse; }
+	float getAmbientIntensity() const { return ambientIntensity; }
 
-	glm::vec3 getSpecular() const { return specular; }
-
-	float getIntensity() const { return lightIntensity; }
+	float getDiffuseIntensity() const { return diffuseIntensity; }
 
 	bool isImGuiListed() const { return listed; }
 
-	void setAmbient(glm::vec3 amb) { ambient = amb; }
+	void setColor(glm::vec3 color) {
+		this->setDirty();
+		lightColor = color;
+	}
 
-	void setDiffuse(glm::vec3 diff) { diffuse = diff; }
+	void setAmbientIntensity(float ambIntensity) {
+		this->setDirty();
+		ambientIntensity = ambIntensity;
+	}
 
-	void setSpecular(glm::vec3 spec) { specular = spec; }
-
-	void setIntensity(float intensity) { lightIntensity = intensity; }
+	void setDiffuseIntensity(float diffIntensity) {
+		this->setDirty();
+		diffuseIntensity = diffIntensity;
+	}
 
 	void setImGuiListed(bool list) { listed = list; }
 
-	virtual void use(unsigned int shaderID) = 0;
+	virtual void use(unsigned int shaderID, int index) = 0;
 
 	virtual void ImGui();
+
+	virtual void ImGui() const;
 };
 
 class DirectionalLight : public Light {
@@ -82,30 +97,32 @@ public:
 
 	DirectionalLight() = delete;
 
-	DirectionalLight(const DirectionalLight& rhs) : Light(rhs), lightDir(rhs.lightDir) { }
+	DirectionalLight(const DirectionalLight& rhs) : Light(rhs), lightDir(rhs.lightDir) { 
+		++num;
+	}
 
-	DirectionalLight(glm::vec3 direction, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec) 
-		: Light("DirectionalLight-" + std::to_string(++num), DIRECTIONAL_LIGHT_ID, amb, diff, spec), lightDir(direction) { }
+	DirectionalLight(glm::vec3 direction, glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f, float diffIntensity = 1.0f) 
+		: Light("DirectionalLight-" + std::to_string(++num), DIRECTIONAL_LIGHT_ID, color, ambIntensity, diffIntensity), lightDir(direction) { }
 
-	DirectionalLight(glm::vec3 direction, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec, float intensity) 
-		: Light("DirectionalLight-" + std::to_string(++num), DIRECTIONAL_LIGHT_ID, amb, diff, spec, intensity), lightDir(direction) { }
+	DirectionalLight(std::string name, glm::vec3 direction, glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f, float diffIntensity = 1.0f)
+		: Light(name, DIRECTIONAL_LIGHT_ID, color, ambIntensity, diffIntensity), lightDir(direction) { 
+		++num;
+	}
 
 	virtual ~DirectionalLight() { }
 
 	glm::vec3 getDirection() const { return lightDir; }
 
-	void setDirection(glm::vec3 direction) { lightDir = direction; }
-
-	virtual void use(unsigned int shaderID) {
-		glUniform3f(glGetUniformLocation(shaderID, "light.direction"), lightDir.x, lightDir.y, lightDir.z);
-		glUniform3f(glGetUniformLocation(shaderID, "light.ambient"), ambient.r, ambient.g, ambient.b);
-		glUniform3f(glGetUniformLocation(shaderID, "light.diffuse"), diffuse.r, diffuse.g, diffuse.b);
-		glUniform3f(glGetUniformLocation(shaderID, "light.specular"), specular.r, specular.g, specular.b);
-		glUniform1f(glGetUniformLocation(shaderID, "light.intensity"), lightIntensity);
-		glUniform1i(glGetUniformLocation(shaderID, "light.type"), DIRECTIONAL_LIGHT_ID);
+	void setDirection(glm::vec3 direction) {
+		this->setDirty();
+		lightDir = direction;
 	}
 
+	virtual void use(unsigned int shaderID, int index);
+
 	virtual void ImGui();
+
+	virtual void ImGui() const;
 };
 
 class PointLight : public Light {
@@ -114,15 +131,35 @@ class PointLight : public Light {
 protected:
 	glm::vec3 lightPos;
 	glm::vec3 att;
+	float cutOffDistance; //A value below zero represents using the attenuation function when it goes below a certain value (usually 0.01f)
 
 public:
 
 	PointLight() = delete;
 
-	PointLight(const PointLight& rhs) : Light(rhs), lightPos(rhs.lightPos), att(rhs.att) { }
+	PointLight(const PointLight& rhs) : Light(rhs), lightPos(rhs.lightPos), att(rhs.att), cutOffDistance(rhs.cutOffDistance) { 
+		++num;
+	}
 
-	PointLight(glm::vec3 position, glm::vec3 attenuation, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec)
-		: Light("PointLight-" + std::to_string(++num), POINT_LIGHT_ID, amb, diff, spec), lightPos(position), att(attenuation) { }
+	PointLight(glm::vec3 position, glm::vec3 attenuation, float maxDistance = -1.0f, 
+			   glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f, float diffIntensity = 1.0f)
+		: Light("PointLight-" + std::to_string(++num), POINT_LIGHT_ID, color, ambIntensity, diffIntensity), lightPos(position), att(attenuation),
+		cutOffDistance(maxDistance) { }
+
+	PointLight(std::string name, glm::vec3 position, glm::vec3 attenuation, float maxDistance = -1.0f, 
+			   glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f, float diffIntensity = 1.0f)
+		: Light(name, POINT_LIGHT_ID, color, ambIntensity, diffIntensity), lightPos(position), att(attenuation), cutOffDistance(maxDistance) {
+		++num;
+	}
+
+protected:
+
+	PointLight(std::string name, unsigned short id, glm::vec3 position, glm::vec3 attenuation, 
+			   float maxDistance = -1.0f, glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f,
+			   float diffIntensity = 1.0f) : Light(name, id, color, ambIntensity, diffIntensity), lightPos(position), att(attenuation),
+		cutOffDistance(maxDistance) { }
+
+public:
 
 	virtual ~PointLight() { }
 
@@ -130,28 +167,49 @@ public:
 
 	glm::vec3 getAttenuation() const { return att; }
 
-	void setPosition(glm::vec3 position) { lightPos = position; }
+	float getMaxDistance() const { return cutOffDistance; }
 
-	void setAttenuation(glm::vec3 attenuation) { att = attenuation; }
-
-	virtual void use(unsigned int shaderID) {
-		glUniform3f(glGetUniformLocation(shaderID, "light.position"), lightPos.x, lightPos.y, lightPos.z);
-		glUniform3f(glGetUniformLocation(shaderID, "light.attenuation"), att.s, att.t, att.p);
-		glUniform3f(glGetUniformLocation(shaderID, "light.ambient"), ambient.r, ambient.g, ambient.b);
-		glUniform3f(glGetUniformLocation(shaderID, "light.diffuse"), diffuse.r, diffuse.g, diffuse.b);
-		glUniform3f(glGetUniformLocation(shaderID, "light.specular"), specular.r, specular.g, specular.b);
-		glUniform1f(glGetUniformLocation(shaderID, "light.intensity"), lightIntensity);
-		glUniform1i(glGetUniformLocation(shaderID, "light.type"), POINT_LIGHT_ID);
+	void setPosition(glm::vec3 position) {
+		this->isDirty();
+		lightPos = position;
 	}
 
+	void setAttenuation(glm::vec3 attenuation) {
+		this->isDirty();
+		att = attenuation;
+	}
+
+	void setConstantAttenuation(float constant) {
+		this->isDirty();
+		att.x = constant;
+	}
+
+	void setLinearAttenuation(float linear) {
+		this->isDirty();
+		att.y = linear;
+	}
+
+	void setQuadraticAttenuation(float quadratic) {
+		this->isDirty();
+		att.z = quadratic;
+	}
+
+	void setMaxDistance(float maxDistance) {
+		this->isDirty();
+		cutOffDistance = maxDistance;
+	}
+
+	virtual void use(unsigned int shaderID, int index);
+
 	virtual void ImGui();
+
+	virtual void ImGui() const;
 };
 
-class SpotLight : public Light {
+class SpotLight : public PointLight {
 	static unsigned int num;
 
 protected:
-	glm::vec3 lightPos;
 	glm::vec3 lightDir;
 
 	float cutOffAngle;
@@ -161,28 +219,41 @@ public:
 
 	SpotLight() = delete;
 
-	SpotLight(const SpotLight& rhs) : Light(rhs), lightPos(rhs.lightPos), lightDir(rhs.lightDir), 
-		cutOffAngle(rhs.cutOffAngle), smoothAngle(rhs.smoothAngle) { }
+	SpotLight(const SpotLight& rhs) : PointLight(rhs), lightDir(rhs.lightDir), cutOffAngle(rhs.cutOffAngle), smoothAngle(rhs.smoothAngle) { 
+		++num;
+	}
 
-	SpotLight(glm::vec3 position, glm::vec3 direction, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec, float theta)
-		: Light("SpotLight-" + std::to_string(++num), SPOT_LIGHT_ID, amb, diff, spec), lightPos(position), lightDir(direction), 
-		cutOffAngle(theta), smoothAngle(theta) { }
+	SpotLight(glm::vec3 position, glm::vec3 direction, glm::vec3 attenuation, float theta, float maxDistance = -1.0f, 
+			  glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f, float diffIntensity = 1.0f)
+		: PointLight("SpotLight-" + std::to_string(++num), SPOT_LIGHT_ID, position, attenuation, maxDistance, color, ambIntensity, diffIntensity), 
+		lightDir(direction), cutOffAngle(theta), smoothAngle(theta) { }
 
-	SpotLight(glm::vec3 position, glm::vec3 direction, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec, float theta, float gamma)
-		: Light("SpotLight-" + std::to_string(++num), SPOT_LIGHT_ID, amb, diff, spec), lightPos(position), lightDir(direction), 
-		cutOffAngle(theta), smoothAngle(gamma) { }
+	SpotLight(glm::vec3 position, glm::vec3 direction, glm::vec3 attenuation, float theta, float gamma, 
+			  float maxDistance = -1.0f, glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f,
+			  float diffIntensity = 1.0f)
+		: PointLight("SpotLight-" + std::to_string(++num), SPOT_LIGHT_ID, position, attenuation, maxDistance, color, ambIntensity, diffIntensity),
+		lightDir(direction), cutOffAngle(theta), smoothAngle(gamma) {
+		assert(gamma >= theta);
+	}
 
-	SpotLight(glm::vec3 position, glm::vec3 direction, float intensity, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec, float theta)
-		: Light("SpotLight-" + std::to_string(++num), SPOT_LIGHT_ID, amb, diff, spec, intensity), lightPos(position), lightDir(direction), 
-		cutOffAngle(theta), smoothAngle(theta) { }
+	SpotLight(std::string name, glm::vec3 position, glm::vec3 direction, glm::vec3 attenuation, float theta,
+			  float maxDistance = -1.0f, glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f,
+			  float diffIntensity = 1.0f)
+		: PointLight(name, SPOT_LIGHT_ID, position, attenuation, maxDistance, color, ambIntensity, diffIntensity), lightDir(direction),
+		cutOffAngle(theta), smoothAngle(theta) {
+		++num;
+	}
 
-	SpotLight(glm::vec3 position, glm::vec3 direction, float intensity, glm::vec3 amb, glm::vec3 diff, glm::vec3 spec, float theta, float gamma)
-		: Light("SpotLight-" + std::to_string(++num), SPOT_LIGHT_ID, amb, diff, spec, intensity), lightPos(position), lightDir(direction), 
-		cutOffAngle(theta), smoothAngle(gamma) { }
+	SpotLight(std::string name, glm::vec3 position, glm::vec3 direction, glm::vec3 attenuation, float theta, float gamma,
+			  float maxDistance = -1.0f, glm::vec3 color = glm::vec3(1.0f), float ambIntensity = 0.2f,
+			  float diffIntensity = 1.0f)
+		: PointLight(name, SPOT_LIGHT_ID, position, attenuation, maxDistance, color, ambIntensity, diffIntensity), lightDir(direction),
+		cutOffAngle(theta), smoothAngle(gamma) {
+		++num;
+		assert(gamma >= theta);
+	}
 
 	virtual ~SpotLight() { }
-
-	glm::vec3 getPosition() const { return lightPos; }
 
 	glm::vec3 getDirection() const { return lightDir; }
 
@@ -190,25 +261,24 @@ public:
 
 	float getSmoothingAngle() const { return smoothAngle; }
 
-	void setPosition(glm::vec3 position) { lightPos = position; }
-
-	void setDirection(glm::vec3 direction) { lightDir = direction; }
-
-	void setCutOffAngle(float phi) { cutOffAngle = phi; }
-
-	void setSmoothingAngle(float gamma) { smoothAngle = gamma; }
-
-	virtual void use(unsigned int shaderID) {
-		glUniform3f(glGetUniformLocation(shaderID, "light.position"), lightPos.x, lightPos.y, lightPos.z);
-		glUniform3f(glGetUniformLocation(shaderID, "light.direction"), lightDir.x, lightDir.y, lightDir.z);
-		glUniform3f(glGetUniformLocation(shaderID, "light.ambient"), ambient.r, ambient.g, ambient.b);
-		glUniform3f(glGetUniformLocation(shaderID, "light.diffuse"), diffuse.r, diffuse.g, diffuse.b);
-		glUniform3f(glGetUniformLocation(shaderID, "light.specular"), specular.r, specular.g, specular.b);
-		glUniform1f(glGetUniformLocation(shaderID, "light.intensity"), lightIntensity);
-		glUniform1f(glGetUniformLocation(shaderID, "light.cutOffAngle"), cutOffAngle);
-		glUniform1f(glGetUniformLocation(shaderID, "light.smoothAngle"), smoothAngle);
-		glUniform1i(glGetUniformLocation(shaderID, "light.type"), SPOT_LIGHT_ID);
+	void setDirection(glm::vec3 direction) {
+		this->setDirty();
+		lightDir = direction;
 	}
 
+	void setCutOffAngle(float phi) {
+		this->setDirty();
+		cutOffAngle = phi;
+	}
+
+	void setSmoothingAngle(float gamma) {
+		this->setDirty();
+		smoothAngle = gamma;
+	}
+
+	virtual void use(unsigned int shaderID, int index);
+
 	virtual void ImGui();
+
+	virtual void ImGui() const;
 };

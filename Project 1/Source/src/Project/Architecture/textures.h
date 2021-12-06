@@ -26,5 +26,7 @@ unsigned int loadTexture(const char* file) {
 
     stbi_image_free(data);
 
+    glBindTexture(GL_TEXTURE_2D, 0);
+
     return temp;
 }

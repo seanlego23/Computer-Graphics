@@ -125,12 +125,36 @@ void renderer::useShaderVariables(unsigned int shaderID) {
 
 void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) { // here's where the "actual drawing" gets done
 
-    if (dirty)
+    if (this->isDirty()) {
         renderUpdate();
+        renderer::renderUpdate(); //Called to handle any lower level updates and cleanups
+    }
 
     glm::mat4 mvp;
 
-    unsigned int shaderID = material->use();
+    unsigned int shaderID;
+    if (sg->pass == SceneGraph::RenderPass::GEOMETRY) {
+        std::shared_ptr<Shader> geo = Shader::shaders["geometry"];
+        geo->use();
+        shaderID = geo->ID;
+    } else if (sg->pass == SceneGraph::RenderPass::LIGHTING) {
+        std::shared_ptr<Shader> light = Shader::shaders["light"];
+        light->use();
+        shaderID = light->ID;
+
+        glUniform1i(glGetUniformLocation(shaderID, "ls.nLights"), Light::lights.size());
+        for (int i = 0; i < Light::lights.size(); i++) {
+            Light::lights[i]->use(shaderID, i);
+        }
+
+        //unsigned int lightIndex = glGetUniformBlockIndex(shaderID, "Lights");
+        //glUniformBlockBinding(shaderID, lightIndex, 0);
+    } else
+        shaderID = material->use();
+
+    if (sg->pass == SceneGraph::RenderPass::POST) {
+        glUniform1f(glGetUniformLocation(shaderID, "exposure"), sg->exposure);
+    }
 
     mvp = pMat * vMat * modelMatrix;
 
@@ -141,13 +165,12 @@ void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGra
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "mvp"), 1, GL_FALSE, glm::value_ptr(mvp));
     glUniform1i(glGetUniformLocation(shaderID, "instances"), options.instance_count);
 
-    sg->light->use(shaderID);
     glUniform3f(glGetUniformLocation(shaderID, "cameraPos"), sg->camera.position.x, sg->camera.position.y, sg->camera.position.z);
     glUniform4f(glGetUniformLocation(shaderID, "material.ambient"), material->ambient.r, material->ambient.g, material->ambient.b, material->ambient.a);
     glUniform4f(glGetUniformLocation(shaderID, "material.diffuse"), material->diffuse.r, material->diffuse.g, material->diffuse.b, material->diffuse.a);
     glUniform4f(glGetUniformLocation(shaderID, "material.specular"), material->specular.r, material->specular.g, material->specular.b, material->specular.a);
     glUniform1f(glGetUniformLocation(shaderID, "material.shininess"), material->shininess);
-    if (material->getTextureID()) {
+    if (material->getTextureID() && sg->pass != SceneGraph::RenderPass::LIGHTING) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, material->getTextureID());
         glUniform1i(glGetUniformLocation(shaderID, "material.texture"), 0);
@@ -155,8 +178,6 @@ void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGra
     } else
         glUniform1i(glGetUniformLocation(shaderID, "material.useTexture"), 0);
     glUniform1d(glGetUniformLocation(shaderID, "elapsedTime"), elapsedTime += deltaTime);
-
-
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);

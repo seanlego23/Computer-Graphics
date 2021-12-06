@@ -9,6 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Material.h"
+#include "Object.h"
 #include "SceneGraph.h"
 #include "shader_s.h"
 
@@ -24,7 +25,7 @@ struct renderOptions {
     unsigned int offset;
 };
 
-class renderer {
+class renderer : public Object {
 private:
 
     struct shaderVariable {
@@ -46,8 +47,6 @@ private:
 
 protected:
 
-    std::string name;
-    bool dirty = false;
     unsigned int VBO[8] = {}, VAO = 0, EBO = 0;
     double elapsedTime = 0;
 
@@ -55,11 +54,11 @@ protected:
 
 public:
 
-    renderer() = delete;
+    renderer() { }
 
-    renderer(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : material(m), modelMatrix(xForm), name(name) { }
+    renderer(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : Object(name), material(m), modelMatrix(xForm) { }
 
-    renderer(const renderer& rhs) : material(rhs.material), modelMatrix(rhs.modelMatrix), name(rhs.name + " Copy") { }
+    renderer(const renderer& rhs) : Object(rhs), material(rhs.material), modelMatrix(rhs.modelMatrix) { }
 
     virtual ~renderer() { }
 
@@ -79,11 +78,6 @@ public:
 
     bool isInstanced() {
         return options.instanced;
-    }
-
-    //If the geometry has been updated, then this function will return true
-    bool isDirty() {
-        return dirty;
     }
 
     void setInstanced(bool inst) {
@@ -120,7 +114,7 @@ public:
         modelMatrix = glm::scale(modelMatrix, glm::vec3(scale[0], scale[1], scale[2]));
     }
 
-    virtual void renderUpdate() { dirty = false; }
+    virtual void renderUpdate() { this->resetDirty(); }
 
     virtual void render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
 

@@ -60,14 +60,24 @@ class SceneGraph {
 	treeNode tree;
 	treeNode* currentNode;
 
+	//unsigned int nLights;
+
 public:
 
-	Camera camera;
-	Light* light;
+	enum class RenderPass {
+		FORWARD,
+		GEOMETRY,
+		LIGHTING,
+		POST,
+	};
 
-	SceneGraph(Camera c, DirectionalLight* light) : tree(glm::mat4(1.0f), nullptr), camera(c), light(light) {
-		currentNode = &tree;
-	}
+	Camera camera;
+	RenderPass pass = RenderPass::FORWARD;
+	float exposure = 3.0f;
+
+	//unsigned int uboLights;
+
+	SceneGraph(Camera c);
 
 	void setModelMatrix(glm::mat4 m) {
 		currentNode->setModelMatrix(m);
@@ -87,10 +97,6 @@ public:
 		return currentNode;
 	}
 
-	void render(double deltaTime) {
-		glm::mat4 pMat = camera.projection() * glm::lookAt(camera.position, camera.target, camera.up);
-
-		tree.traverse(glm::mat4(1.0f), pMat, deltaTime, this);
-	}
+	void render(double deltaTime, RenderPass rp);
 
 };

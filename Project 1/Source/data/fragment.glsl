@@ -1,13 +1,30 @@
 #version 410 core
 
-uniform sampler2D tex;
+struct Material {
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    float shininess;
+	sampler2D texture;
+	int useTexture;
+};
 
-uniform vec4 ourColor;
+in vec2 TexCoords;
 
-in vec2 TexCoord;
+uniform Material material;
+uniform vec2 ScreenSize;
+uniform float exposure;
+
 out vec4 FragColor;
 
-void main()
-{
-   FragColor = mix(texture(tex, TexCoord), texture(tex, vec2(3 - TexCoord.x, 3 - TexCoord.y)), .3);
+void main() {
+	const float gamma = 0.3;
+	vec4 texColor = texture(material.texture, TexCoords);
+	vec3 hdrColor = texColor.rgb;
+	
+	vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
+	
+	mapped = pow(mapped, vec3(1.0 / gamma));
+	
+	FragColor = vec4(mapped, texColor.a);
 }

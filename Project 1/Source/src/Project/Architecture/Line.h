@@ -51,14 +51,14 @@ public:
 		points[0] = start.x;
 		points[1] = start.y;
 		points[2] = start.z;
-		dirty = true;
+		this->setDirty();
 	}
 
 	virtual void setEndPoint(glm::vec3 end) {
 		points[3] = end.x;
 		points[4] = end.y;
 		points[5] = end.z;
-		dirty = true;
+		this->setDirty();
 	}
 
 };

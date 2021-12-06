@@ -46,15 +46,20 @@ glm::mat4 vMat; // view matrix
 // settings
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
+unsigned int scr_width = SCR_WIDTH;
+unsigned int scr_height = SCR_HEIGHT;
 
 unsigned int texture;
 unsigned int grass_texture;
 unsigned int road_texture;
+unsigned int litScene;
 
 // image buffer used by raster drawing basics.cpp
 extern unsigned char imageBuff[512][512][3];
 
 int myTexture();
+
+SceneGraph* globalScene;
 
 #pragma warning( disable : 26451 )
 
@@ -67,6 +72,7 @@ void setupTextures()
     glGenTextures(1, &texture);
     glGenTextures(1, &grass_texture);
     glGenTextures(1, &road_texture);
+    glGenTextures(1, &litScene);
 
     // texture is a buffer we will be generating for pixel experiments
     glBindTexture(GL_TEXTURE_2D, texture); // all upcoming GL_TEXTURE_2D operations now have effect on this texture object
@@ -115,6 +121,8 @@ void setupTextures()
     }
 
     stbi_image_free(data);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 
 }
 
@@ -195,6 +203,8 @@ void drawIMGUI(renderer* myRenderer, SceneGraph* sg) {
             sg->camera.getClipNearFar(&cam_clip[0], &cam_clip[1]);
             instantiated = true;
         }
+
+        ImGui::SliderFloat("Exposure", &sg->exposure, 0.01f, 10.0f);
 
         // values we'll use to derive a model matrix
         ImGui::Text("Model Matrix");
@@ -292,7 +302,13 @@ int main() {
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     {
-        new Shader("data/vertex.glsl", "data/fragment.glsl", "ground");
+        new Shader("data/vGeo.glsl", "data/fGeo.glsl", "geometry");
+
+        new Shader("data/vLight.glsl", "data/fLight.glsl", "light");
+
+        new Shader("data/vLight.glsl", "data/fTest.glsl", "lightTest");
+
+        new Shader("data/vertex.glsl", "data/fragment.glsl", "screen");
 
         new Shader("data/vtorus.glsl", "data/ftorus.glsl", "torus");
 
@@ -309,30 +325,34 @@ int main() {
     setupTextures();
 
     {
-        new Material(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.0f,
-                     grass_texture, Shader::shaders["ground"], "grass");
 
-        new Material(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.0f, 
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, 
                      0, Shader::shaders["torus"], "torus");
 
-        new Material(glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), 0.0f, road_texture, Shader::shaders["road"], "road");
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(1.0f), glm::vec4(1.0f), 64.0f, road_texture, Shader::shaders["road"], "road");
 
-        new Material(glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), 0.0f, 0, Shader::shaders["line"], "curve");
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(1.0f), glm::vec4(1.0f), 64.0f, 0, Shader::shaders["line"], "curve");
 
-        new Material(glm::vec4(0.0f), glm::vec4(0.0f), glm::vec4(0.0f), 0.0f, 0, Shader::shaders["oscillate"], "moveTorus");
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.5f), glm::vec4(0.9f), 64.0f, 0, Shader::shaders["oscillate"], "moveTorus");
 
-        new Material(glm::vec4(0.3f), glm::vec4(0.7f), glm::vec4(0.3f), 64.0f, 0, Shader::shaders["material"], "litMaterial");
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, 0, Shader::shaders["material"], "litMaterial");
+
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, litScene, Shader::shaders["screen"], "screen");
     }
 
+    QuadRenderer lightQuad(Material::materials["screen"], glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)), "lightQuad");
+    QuadRenderer screenQuad(Material::materials["screen"], glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)), "screenQuad");
+
     Camera camera;
-    camera.setPerspective(glm::radians(60.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 100.0f);
-    camera.position = glm::vec3(-3.0f, -10.0f, 5.0f);
+    camera.setPerspective(glm::radians(60.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+    camera.position = glm::vec3(-3.0f, -2.0f, 2.0f);
     camera.target = glm::vec3(0.0f);
     camera.up = glm::vec3(0.0f, 0.0f, 1.0f);
 
-    DirectionalLight light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.4f), glm::vec3(1.0f), glm::vec3(1.0f));
+    new DirectionalLight("Sun", glm::vec3(0.0f, 1.0f, -2.0f));
 
-    SceneGraph scene(camera, &light);
+    SceneGraph scene(camera);
+    globalScene = &scene;
 
     TorusModel torus(Material::materials["torus"], glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-4.0f, -6.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), "Torus1", 1.2f, 0.5f);
     scene.addRenderer(&torus);
@@ -368,46 +388,128 @@ int main() {
     Car car(Material::materials["litMaterial"], cTransform, "Car", "data/car/Jeep_Renegade_2016.obj", 2.0f);
     scene.addRenderer(&car);
 
-    // render loop
-    // -----------
-
-    /* Deffered Shading setup
+    // Deffered Shading setup
     unsigned int gBuffer;
     glGenFramebuffers(1, &gBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-    unsigned int gPosition, gNormal, gColorSpec;
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gBuffer);
+    unsigned int gPosition, gNormal, gAlbedoSpec, gMask;
 
     glGenTextures(1, &gPosition);
     glBindTexture(GL_TEXTURE_2D, gPosition);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
 
     // - normal color buffer
     glGenTextures(1, &gNormal);
     glBindTexture(GL_TEXTURE_2D, gNormal);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
 
     // - color + specular color buffer
-    glGenTextures(1, &gColorSpec);
-    glBindTexture(GL_TEXTURE_2D, gColorSpec);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glGenTextures(1, &gAlbedoSpec);
+    glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+
+    glGenTextures(1, &gMask);
+    glBindTexture(GL_TEXTURE_2D, gMask);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gMask, 0);
+
+    // create and attach depth buffer (renderbuffer)
+    unsigned int rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, SCR_WIDTH, SCR_HEIGHT);
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    unsigned int attachments[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
+    glDrawBuffers(4, attachments);
+
+    // finally check if framebuffer is complete
+    GLenum status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "Framebuffer not complete!" << std::endl;
+        switch (status) {
+        case GL_FRAMEBUFFER_UNDEFINED:
+            std::cout << "Framebuffer undefined";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+            std::cout << "Framebuffer incomplete attachment";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            std::cout << "Framebuffer incomplete missing attachment";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+            std::cout << "Framebuffer incomplete draw buffer";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+            std::cout << "Framebuffer incomplete read buffer";
+            break;
+        case GL_FRAMEBUFFER_UNSUPPORTED:
+            std::cout << "Framebuffer unsupported";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+            std::cout << "Framebuffer incomplete multisample";
+            break;
+        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+            std::cout << "Framebuffer incomplete layer targets";
+            break;
+        default:
+            std::cout << "Frambuffer other error";
+            break;
+        }
+    }
+
+    unsigned int lBuffer;
+    glGenFramebuffers(1, &lBuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, lBuffer);
+
+    glBindTexture(GL_TEXTURE_2D, litScene);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gColorSpec, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, litScene, 0);
 
-    unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-    glDrawBuffers(3, attachments);
-    */
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    unsigned int lattachments[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, lattachments);
+
+    if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Lighting Framebuffer not complete";
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+
+    std::shared_ptr<Shader> lightPass = Shader::shaders["light"];
+    lightPass->use();
+    lightPass->setInt("gPosition", 0);
+    lightPass->setInt("gNormal", 1);
+    lightPass->setInt("gAlbedoSpec", 2);
+    lightPass->setInt("gMask", 3);
+    lightPass->setVec2("ScreenSize", SCR_WIDTH, SCR_HEIGHT);
+
+    std::shared_ptr<Shader> postPass = Shader::shaders["screen"];
+    postPass->use();
+    postPass->setInt("gMask", 1);
+
+    // render loop
+    // -----------
 
     double lastTime = glfwGetTime();
-    
-    glEnable(GL_DEPTH_TEST);
-
     while (!glfwWindowShouldClose(window))
     {
         // just like in a game engine, it's useful to know the delta time
@@ -422,15 +524,45 @@ int main() {
         // input
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
-        
 
-        // render background
-        // ------
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glClear(GL_DEPTH_BUFFER_BIT);
+        //Geometry render pass
+        {
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gBuffer);
+            glDepthMask(GL_TRUE);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            glEnable(GL_DEPTH_TEST);
 
-        scene.render(deltaTime);
+            scene.render(deltaTime, SceneGraph::RenderPass::GEOMETRY);
+            glDepthMask(GL_FALSE);
+            glDisable(GL_DEPTH_TEST);
+        }
+
+        //Lighting render pass
+        {
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, lBuffer);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, gPosition);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, gNormal);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, gMask);
+
+            scene.pass = SceneGraph::RenderPass::LIGHTING;
+            lightQuad.render(glm::mat4(1.0f), glm::mat4(1.0f), deltaTime, &scene);
+        }
+
+        //Post-processing pass
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClear(GL_COLOR_BUFFER_BIT);
+            scene.pass = SceneGraph::RenderPass::POST;
+            screenQuad.render(glm::mat4(1.0f), glm::mat4(1.0f), deltaTime, &scene);
+        }
 
         // draw imGui over the top
         drawIMGUI(&line, &scene);
@@ -450,7 +582,7 @@ int main() {
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     // make sure the viewport matches the new window dimensions
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, scr_width = width, scr_height = height);
 
-    pMat = glm::perspective(1.0472f, (float)width / (float)height, 0.1f, 1000.0f);	//  1.0472 radians = 60 degrees
+    //globalScene->camera.setAspect((float)width / (float)height);
 }
