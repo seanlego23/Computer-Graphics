@@ -18,6 +18,7 @@ class SceneGraph;
 struct renderOptions {
     bool instanced;
     bool indexed;
+    bool cullBackFace = true;
     GLenum renderType;
     GLenum indexType;
     unsigned int instance_count;
@@ -50,9 +51,9 @@ protected:
     unsigned int VBO[8] = {}, VAO = 0, EBO = 0;
     double elapsedTime = 0;
 
-    renderOptions options = {false, true, GL_TRIANGLES, GL_UNSIGNED_INT, 1, 0, 0};
-
 public:
+
+    renderOptions options = {false, true, true, GL_TRIANGLES, GL_UNSIGNED_INT, 1, 0, 0};
 
     renderer() { }
 

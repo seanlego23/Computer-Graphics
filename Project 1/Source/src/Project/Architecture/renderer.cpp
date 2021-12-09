@@ -179,9 +179,13 @@ void renderer::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGra
         glUniform1i(glGetUniformLocation(shaderID, "material.useTexture"), 0);
     glUniform1d(glGetUniformLocation(shaderID, "elapsedTime"), elapsedTime += deltaTime);
 
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);
+    if (options.cullBackFace) {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+    } else {
+        glDisable(GL_CULL_FACE);
+    }
 
     glBindVertexArray(VAO);
 

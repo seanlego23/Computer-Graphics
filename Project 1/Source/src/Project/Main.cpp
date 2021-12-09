@@ -33,6 +33,7 @@
 #include "Architecture\BezierCurve.h"
 #include "Architecture\QuadRenderer.h"
 #include "Architecture\CubeRenderer.h"
+#include "Architecture\SphereModel.h"
 #include "Architecture\TorusModel.h"
 #include "Car.h"
 #include "Road.h"
@@ -44,8 +45,8 @@ glm::mat4 pMat; // perspective matrix
 glm::mat4 vMat; // view matrix
 
 // settings
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
 unsigned int scr_width = SCR_WIDTH;
 unsigned int scr_height = SCR_HEIGHT;
 
@@ -55,7 +56,7 @@ unsigned int road_texture;
 unsigned int litScene;
 
 // image buffer used by raster drawing basics.cpp
-extern unsigned char imageBuff[512][512][3];
+extern float imageBuff[3840][2160][3];
 
 int myTexture();
 
@@ -308,7 +309,7 @@ int main() {
 
         new Shader("data/vLight.glsl", "data/fTest.glsl", "lightTest");
 
-        new Shader("data/vertex.glsl", "data/fragment.glsl", "screen");
+        new Shader("data/vPost.glsl", "data/fPost.glsl", "post");
 
         new Shader("data/vtorus.glsl", "data/ftorus.glsl", "torus");
 
@@ -337,11 +338,11 @@ int main() {
 
         new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, 0, Shader::shaders["material"], "litMaterial");
 
-        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, litScene, Shader::shaders["screen"], "screen");
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, litScene, Shader::shaders["post"], "postProcessing");
     }
 
-    QuadRenderer lightQuad(Material::materials["screen"], glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)), "lightQuad");
-    QuadRenderer screenQuad(Material::materials["screen"], glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)), "screenQuad");
+    QuadRenderer lightQuad(Material::materials["litMaterial"], glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)), "lightQuad");
+    QuadRenderer screenQuad(Material::materials["postProcessing"], glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)), "screenQuad");
 
     Camera camera;
     camera.setPerspective(glm::radians(60.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
@@ -387,6 +388,9 @@ int main() {
     cTransform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.5f, 0.0f)) * cTransform;
     Car car(Material::materials["litMaterial"], cTransform, "Car", "data/car/Jeep_Renegade_2016.obj", 2.0f);
     scene.addRenderer(&car);
+
+    SphereModel sphere(Material::materials["litMaterial"], glm::translate(glm::mat4(1.0f), glm::vec3(5.0f, 5.0f, 2.0f)), "boo", 3);
+    scene.addRenderer(&sphere);
 
     // Deffered Shading setup
     unsigned int gBuffer;
@@ -437,38 +441,8 @@ int main() {
 
     // finally check if framebuffer is complete
     GLenum status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE) {
+    if (status != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "Framebuffer not complete!" << std::endl;
-        switch (status) {
-        case GL_FRAMEBUFFER_UNDEFINED:
-            std::cout << "Framebuffer undefined";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-            std::cout << "Framebuffer incomplete attachment";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-            std::cout << "Framebuffer incomplete missing attachment";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-            std::cout << "Framebuffer incomplete draw buffer";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-            std::cout << "Framebuffer incomplete read buffer";
-            break;
-        case GL_FRAMEBUFFER_UNSUPPORTED:
-            std::cout << "Framebuffer unsupported";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-            std::cout << "Framebuffer incomplete multisample";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-            std::cout << "Framebuffer incomplete layer targets";
-            break;
-        default:
-            std::cout << "Frambuffer other error";
-            break;
-        }
-    }
 
     unsigned int lBuffer;
     glGenFramebuffers(1, &lBuffer);
@@ -502,7 +476,7 @@ int main() {
     lightPass->setInt("gMask", 3);
     lightPass->setVec2("ScreenSize", SCR_WIDTH, SCR_HEIGHT);
 
-    std::shared_ptr<Shader> postPass = Shader::shaders["screen"];
+    std::shared_ptr<Shader> postPass = Shader::shaders["post"];
     postPass->use();
     postPass->setInt("gMask", 1);
 
@@ -528,6 +502,9 @@ int main() {
         //Geometry render pass
         {
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gBuffer);
+
+            //render sphere environment map
+
             glDepthMask(GL_TRUE);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
