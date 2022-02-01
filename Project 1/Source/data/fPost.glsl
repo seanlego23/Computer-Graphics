@@ -11,6 +11,8 @@ struct Material {
 
 in vec2 TexCoords;
 
+uniform sampler2D gMask;
+
 uniform Material material;
 uniform vec2 ScreenSize;
 uniform float exposure;
@@ -22,9 +24,13 @@ void main() {
 	vec4 texColor = texture(material.texture, TexCoords);
 	vec3 hdrColor = texColor.rgb;
 	
-	vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
-	
-	mapped = pow(mapped, vec3(1.0 / gamma));
+	float mask = texture(gMask, TexCoords).r;
+	vec3 mapped = hdrColor;
+	if (mask != 0.0) {
+		mapped = vec3(1.0) - exp(-hdrColor * exposure);
+
+		mapped = pow(mapped, vec3(1.0 / gamma));
+	}
 	
 	FragColor = vec4(mapped, texColor.a);
 }

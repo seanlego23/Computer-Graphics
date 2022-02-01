@@ -1,11 +1,12 @@
 #version 410 core
 
 struct Material {
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
     float shininess;
 	sampler2D texture;
+	int useTexture;
 };
 
 uniform Material material;
