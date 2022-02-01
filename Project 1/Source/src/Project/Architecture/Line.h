@@ -45,6 +45,12 @@ public:
 
 	virtual glm::vec3 getEndPoint() { return glm::vec3(points[3], points[4], points[5]); }
 
+	virtual float length() {
+		return glm::length(getEndPoint() - getStartPoint());
+	}
+
+	virtual std::pair<glm::vec3, glm::vec3> getPointOnLine(float progress);
+
 	virtual void renderUpdate();
 
 	virtual void setStartPoint(glm::vec3 start) {

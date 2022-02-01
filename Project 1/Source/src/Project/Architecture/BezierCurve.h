@@ -56,25 +56,25 @@ public:
 
 	virtual glm::vec3 getEndPoint() { return end; }
 
-	virtual void update() {
+	virtual void update(double deltaTime) {
 		delete[] controlPoints;
 		std::pair<float*, unsigned int> data = calcPointsFnc(start, end);
 		controlPoints = data.first;
 		calculateLines();
 
-		Line::update();
+		Line::update(deltaTime);
 	}
 
 	virtual void setStartPoint(glm::vec3 pStart) {
 		start = pStart;
 
-		BezierCurve::update();
+		//BezierCurve::update();
 	}
 
 	virtual void setEndPoint(glm::vec3 pEnd) {
 		end = pEnd;
 
-		BezierCurve::update();
+		//BezierCurve::update();
 	}
 
 	float getPrecision() { return precision; }
@@ -87,20 +87,22 @@ public:
 		points = new float[(long long)numOfPoints * 3];
 		calculateLines();
 
-		Line::update();
+		//Line::update();
 	}
 
 	unsigned int getNumOfControlPoints() { return numOfControlPoints; }
 
-	float length() {
+	virtual float length() {
 		float l = 0;
-		for (int i = 0; i < numOfPoints; i++) {
+		for (int i = 0; i < this->numOfPoints - 1; i++) {
 			glm::vec3 p1(points[i*3], points[i*3 + 1], points[i*3 + 2]);
 			glm::vec3 p2(points[i*3 + 3], points[i*3 + 4], points[i*3 + 5]);
-			l += (p2 - p1).length();
+			l += glm::length(p2 - p1);
 		}
 		return l;
 	}
+
+	virtual std::pair<glm::vec3, glm::vec3> getPointOnLine(float progress);
 	
 	virtual void render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg);
 

@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <string>
-#include <set>
+#include <vector>
 
 #include "attachment.h"
 #include "renderer.h"
@@ -35,7 +35,7 @@ extern unsigned long modelIDCounter;
 class model : public renderer { 
 protected:
 
-	std::set<attachment, bool(*)(const attachment&, const attachment&)> attachedModels;
+	std::vector<attachment> attachedModels;
 
 public:
 
@@ -43,16 +43,15 @@ public:
 
 	model() = delete;
 
-	model(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : renderer(m, xForm, name), modelID(++modelIDCounter), 
-		attachedModels(&attachment::compare) { }
+	model(std::shared_ptr<Material> m, glm::mat4 xForm, std::string name) : renderer(m, xForm, name), modelID(++modelIDCounter) { }
 
-	model(const model& rhs) : renderer(rhs), modelID(++modelIDCounter), attachedModels(&attachment::compare) {	}
+	model(const model& rhs) : renderer(rhs), modelID(++modelIDCounter) { }
 
 	virtual ~model() { }
 
-	virtual void update() { }
+	virtual void update(double deltaTime) { }
 
-	attachment* attachModel(model* m);
+	void attachModel(model* m);
 
 	bool detachModel(model* m);
 

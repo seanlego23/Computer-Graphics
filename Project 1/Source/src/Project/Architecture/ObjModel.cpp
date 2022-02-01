@@ -155,7 +155,7 @@ void ModelImporter::parseMTL(const char* filePath) {
 
             if (key == "newmtl") {
                 if (mtlName.size()) {
-                    new Material(ambient, diffuse, specular, specularExponent, diffuseTexture, Shader::shaders["material"], mtlName);
+                    new Material(ambient, diffuse, specular, specularExponent, diffuseTexture, Shader::shaders["lit"], mtlName);
                     mtlName.clear();
                     ambient = diffuse = specular = glm::vec4(0.0f);
                     specularExponent = 64.0f;
@@ -181,7 +181,7 @@ void ModelImporter::parseMTL(const char* filePath) {
                 diffuseTexture = loadTexture((getPathName(filePath) + file).c_str());
             }
         }
-        new Material(ambient, diffuse, specular, specularExponent, diffuseTexture, Shader::shaders["material"], mtlName);
+        new Material(ambient, diffuse, specular, specularExponent, diffuseTexture, Shader::shaders["lit"], mtlName);
     }
 }
 

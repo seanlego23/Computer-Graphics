@@ -55,7 +55,28 @@ BezierCurve::BezierCurve(std::shared_ptr<Material> m, glm::mat4 xForm, std::stri
 	glBindVertexArray(0);
 }
 
-void BezierCurve::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) { 
+std::pair<glm::vec3, glm::vec3> BezierCurve::getPointOnLine(float progress) {
+	if (progress < 0.0f || progress > 1.0f)
+		return {glm::vec3(), glm::vec3()};
+	
+	float l = length();
+	float lsum = 0.0f;
+	int i = 0;
+	glm::vec3 p1, p2;
+	for (; i < numOfPoints - 1; i++) {
+		p1 = glm::vec3(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]);
+		p2 = glm::vec3(points[i * 3 + 3], points[i * 3 + 4], points[i * 3 + 5]);
+		float len = glm::length(p2 - p1);
+		if ((lsum + len)/ l > progress)
+			break;
+		lsum += len;
+	}
+
+	progress -= lsum / l;
+	return {glm::normalize(p2 - p1) * progress * l + p1, glm::normalize(p2 - p1)};
+}
+
+void BezierCurve::render(glm::mat4 vMat, glm::mat4 pMat, double deltaTime, SceneGraph* sg) {
 	this->pushShaderVariable("curvePrecision", GL_FLOAT, 1, &precision);
 
 	renderer::render(vMat, pMat, deltaTime, sg);

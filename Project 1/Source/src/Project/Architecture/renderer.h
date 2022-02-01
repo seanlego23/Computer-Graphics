@@ -18,7 +18,7 @@ class SceneGraph;
 struct renderOptions {
     bool instanced;
     bool indexed;
-    bool cullBackFace = true;
+    bool cullBackFace;
     GLenum renderType;
     GLenum indexType;
     unsigned int instance_count;
@@ -105,14 +105,26 @@ public:
 
     void rotate(const float axis[], const float angle) {
         modelMatrix = glm::rotate(modelMatrix, angle, glm::vec3(axis[0], axis[1], axis[2]));
-    } 
+    }
+
+    void rotate(glm::vec3 axis, const float angle) {
+        modelMatrix = glm::rotate(modelMatrix, angle, axis);
+    }
 
     void translate(const float trans[]) {
         modelMatrix = glm::translate(modelMatrix, glm::vec3(trans[0], trans[1], trans[2]));
     }
 
+    void translate(glm::vec3 trans) {
+        modelMatrix = glm::translate(modelMatrix, trans);
+    }
+
     void scale(const float scale[]) {
         modelMatrix = glm::scale(modelMatrix, glm::vec3(scale[0], scale[1], scale[2]));
+    }
+
+    void scale(glm::vec3 scale) {
+        modelMatrix = glm::scale(modelMatrix, scale);
     }
 
     virtual void renderUpdate() { this->resetDirty(); }

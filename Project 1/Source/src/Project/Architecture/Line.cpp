@@ -28,6 +28,14 @@ void Line::init(glm::vec3 start, glm::vec3 end) {
 	glBindVertexArray(0);
 }
 
+std::pair<glm::vec3, glm::vec3> Line::getPointOnLine(float progress) {
+	if (progress < 0.0f || progress > 1.0f)
+		return {glm::vec3(), glm::vec3()};
+
+	glm::quat result = glm::lerp(glm::quat(0.0f, getStartPoint()), glm::quat(0.0f, getEndPoint()), progress);
+	return {glm::vec3(result.x, result.y, result.z), glm::normalize(getEndPoint() - getStartPoint())};
+}
+
 void Line::renderUpdate() {
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
