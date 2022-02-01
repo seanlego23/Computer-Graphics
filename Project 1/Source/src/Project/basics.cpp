@@ -1,5 +1,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
+#include <GLFW/glfw3.h>
+
 #include <random>
 
 struct myEvent {
@@ -11,12 +13,12 @@ using namespace std;
 
 constexpr auto dimx = 3840u, dimy = 2160u;
 
-float imageBuff[dimx][dimy][3]{};
+float imageBuff[dimx][dimy][3] = {};
 
 void attenuate(glm::vec3& color);
 
 int myTexture() {
-	std::minstd_rand lcg(503);
+	std::minstd_rand lcg(glfwGetTime());
 	std::chi_squared_distribution<double> intensityDist(3);
 	std::chi_squared_distribution<double> colorPicker(2);
 
@@ -26,7 +28,7 @@ int myTexture() {
 	constexpr double scaleX = dimx / twoPi;
 	constexpr double scaleY = dimy / glm::pi<double>();
 
-	for (int i = 0; i < 500; i++) {
+	for (int i = 0; i < 5000; i++) {
 		double yaw = std::fmod(std::log(lcg()), twoPi);
 		double pitch = (lcg() < lcg.modulus / 2 ? -1 : 1) * std::fmod(std::log(lcg()), halfPi);
 

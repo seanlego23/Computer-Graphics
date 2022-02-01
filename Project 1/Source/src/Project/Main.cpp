@@ -30,6 +30,7 @@
 #include "Architecture\Material.h"
 #include "Architecture\SceneGraph.h"
 
+#include "Architecture\Arc.h"
 #include "Architecture\BezierCurve.h"
 #include "Architecture\QuadRenderer.h"
 #include "Architecture\CubeRenderer.h"
@@ -62,6 +63,7 @@ int myTexture();
 
 SceneGraph* globalScene;
 
+#pragma warning(push)
 #pragma warning( disable : 26451 )
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -87,7 +89,7 @@ void setupTextures()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // load image, create texture and generate mipmaps
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 512, 512, 0, GL_RGB, GL_UNSIGNED_BYTE, (const void*)imageBuff);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 3840, 2160, 0, GL_RGB, GL_FLOAT, (const void*)imageBuff);
     glGenerateMipmap(GL_TEXTURE_2D);
 
     glBindTexture(GL_TEXTURE_2D, grass_texture);
@@ -307,19 +309,19 @@ int main() {
 
         new Shader("data/vLight.glsl", "data/fLight.glsl", "light");
 
-        new Shader("data/vLight.glsl", "data/fTest.glsl", "lightTest");
-
         new Shader("data/vPost.glsl", "data/fPost.glsl", "post");
 
         new Shader("data/vtorus.glsl", "data/ftorus.glsl", "torus");
 
         new Shader("data/vOscillate.glsl", "data/fOscillate.glsl", "oscillate");
 
-        new Shader("data/vRoad.glsl", "data/fRoad.glsl", "road");
+        new Shader("data/vTex.glsl", "data/fTex.glsl", "textured");
 
         new Shader("data/vBezier.glsl", "data/fBezier.glsl", "line");
 
-        new Shader("data/vLit.glsl", "data/fLit.glsl", "material");
+        new Shader("data/vLit.glsl", "data/fLit.glsl", "lit");
+
+        new Shader("data/vUniverse.glsl", "data/fUniverse.glsl", "universe");
     }
 
     myTexture();
@@ -330,13 +332,15 @@ int main() {
         new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, 
                      0, Shader::shaders["torus"], "torus");
 
-        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(1.0f), glm::vec4(1.0f), 64.0f, road_texture, Shader::shaders["road"], "road");
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(1.0f), glm::vec4(1.0f), 64.0f, road_texture, Shader::shaders["textured"], "road");
+
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(1.0f), glm::vec4(1.0f), 64.0f, texture, Shader::shaders["universe"], "stars");
 
         new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(1.0f), glm::vec4(1.0f), 64.0f, 0, Shader::shaders["line"], "curve");
 
         new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.5f), glm::vec4(0.9f), 64.0f, 0, Shader::shaders["oscillate"], "moveTorus");
 
-        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, 0, Shader::shaders["material"], "litMaterial");
+        new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, 0, Shader::shaders["lit"], "litMaterial");
 
         new Material(glm::vec4(1.0f, glm::vec3(0.3f)), glm::vec4(0.7f), glm::vec4(0.9f), 64.0f, litScene, Shader::shaders["post"], "postProcessing");
     }
@@ -346,8 +350,8 @@ int main() {
 
     Camera camera;
     camera.setPerspective(glm::radians(60.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-    camera.position = glm::vec3(-3.0f, -2.0f, 2.0f);
-    camera.target = glm::vec3(0.0f);
+    camera.position = glm::vec3(10.0f, -10.0f, 4.0f);
+    camera.target = glm::vec3(-5.0f, 5.0f, 0.0f);
     camera.up = glm::vec3(0.0f, 0.0f, 1.0f);
 
     new DirectionalLight("Sun", glm::vec3(0.0f, 1.0f, -2.0f));
@@ -367,30 +371,50 @@ int main() {
     scene.addRenderer(&torus3);
 
     glm::mat4 justAbove = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.001f));
-    BezierCurve line(Material::materials["curve"], justAbove, "Curve1", glm::vec3(-4.0f, -6.0f, 0.0f), glm::vec3(3.0f, 5.0f, 0.0f), 1.0f / 100.0f, fourPointRectangle);
+    BezierCurve line(Material::materials["curve"], justAbove, "Curve1", glm::vec3(-4.0f, -6.0f, 0.0f), glm::vec3(3.0f, 5.0f, 0.0f), 2e-2, fourPointRectangle);
     BezierCurve line2(Material::materials["curve"], justAbove, "Curve2", glm::vec3(3.0f, 5.0f, 0.0f), glm::vec3(7.0f, 8.0f, 0.0f), 2e-2, fourPointRectangle);
     Line line3(Material::materials["curve"], justAbove, "Curve3", glm::vec3(7.0f, 8.0f, 0.0f), glm::vec3(7.0f, 13.0f, 0.0f));
+    Arc arc1(Material::materials["curve"], justAbove, "Arc1", glm::vec3(0.0f, 13.0f, 0.0f), glm::vec3(7.0f, 13.0f, 0.0f), glm::pi<float>(), 2e-2);
+    Line line4(Material::materials["curve"], justAbove, "Curve4", glm::vec3(-7.0f, 13.0f, 0.0f), glm::vec3(-7.0f, 6.0f, 0.0f));
+    BezierCurve line5(Material::materials["curve"], justAbove, "Curve5", glm::vec3(-7.0f, 6.0f, 0.0f), glm::vec3(-10.0f, -6.0f, 0.0f), 2e-2, fourPointRectangle);
+    Arc arc2(Material::materials["curve"], justAbove, "Arc2", glm::vec3(-7.0f, -6.0f, 0.0f), glm::vec3(-10.0f, -6.0f, 0.0f), glm::pi<float>(), 2e-2);
 
     glm::vec3 up(0.0f, 0.0f, 1.0f);
     glm::vec3 left(-1.0f, 0.0f, 0.0f);
-    Road road(Material::materials["road"], glm::mat4(1.0f), "Road1", & line, up, left, left, 1.0f, 0.2f, true);
+    glm::vec3 right(1.0f, 0.0f, 0.0f);
+    glm::vec3 back(0.0f, -1.0f, 0.0f);
+    glm::vec3 forward(0.0f, 1.0f, 0.0f);
+    Road road(Material::materials["road"], glm::mat4(1.0f), "Road1", &line, up, left, left, 1.0f, 0.2f, false);
+    Road road2(Material::materials["road"], glm::mat4(1.0f), "Road2", &line2, up, left, left, 1.0f, 0.2f, false);
+    Road road3(Material::materials["road"], glm::mat4(1.0f), "Road3", &line3, up, left, left, 1.0f, 0.2f, false);
+    Road road4(Material::materials["road"], glm::mat4(1.0f), "Road4", &arc1, up, left, right, 1.0f, 0.2f, false);
+    Road road5(Material::materials["road"], glm::mat4(1.0f), "Road5", &line4, up, right, right, 1.0f, 0.2f, false);
+    Road road6(Material::materials["road"], glm::mat4(1.0f), "Road6", &line5, up, right, right, 1.0f, 0.2f, false);
+    Road road7(Material::materials["road"], glm::mat4(1.0f), "Road7", &arc2, up, right, left, 1.0f, 0.2f, false);
     scene.addRenderer(&road);
-
-    Road road2(Material::materials["road"], glm::mat4(1.0f), "Road2", & line2, up, left, left, 1.0f, 0.2f, false);
     scene.addRenderer(&road2);
-
-    Road road3(Material::materials["road"], glm::mat4(1.0f), "Road3", & line3, up, left, left, 1.0f, 0.2f, false);
     scene.addRenderer(&road3);
+    scene.addRenderer(&road4);
+    scene.addRenderer(&road5);
+    scene.addRenderer(&road6);
+    scene.addRenderer(&road7);
 
     glm::mat4 cTransform = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f));
     cTransform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * cTransform;
     cTransform = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), up) * cTransform;
     cTransform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.5f, 0.0f)) * cTransform;
-    Car car(Material::materials["litMaterial"], cTransform, "Car", "data/car/Jeep_Renegade_2016.obj", 2.0f);
+    Car car(Material::materials["litMaterial"], cTransform, "Car", "data/car/Jeep_Renegade_2016.obj", 1.0f);
     scene.addRenderer(&car);
+    car.attachModel(&line);
+    car.attachModel(&line2);
+    car.attachModel(&line3);
+    car.attachModel(&arc1);
+    car.attachModel(&line4);
+    car.attachModel(&line5);
+    car.attachModel(&arc2);
 
-    SphereModel sphere(Material::materials["litMaterial"], glm::translate(glm::mat4(1.0f), glm::vec3(5.0f, 5.0f, 2.0f)), "boo", 3);
-    scene.addRenderer(&sphere);
+    SphereModel universe(Material::materials["stars"], glm::mat4(1.0f), "Universe", 10);
+    universe.options.cullBackFace = false;
 
     // Deffered Shading setup
     unsigned int gBuffer;
@@ -495,6 +519,8 @@ int main() {
         // -------------------------------------------------------------------------------
         glfwPollEvents();
 
+        car.update(deltaTime);
+
         // input
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
@@ -502,17 +528,18 @@ int main() {
         //Geometry render pass
         {
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gBuffer);
-
-            //render sphere environment map
-
-            glDepthMask(GL_TRUE);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             glClear(GL_DEPTH_BUFFER_BIT);
+
+            //render sphere environment map
+            scene.pass = SceneGraph::RenderPass::FORWARD;
+            universe.render(glm::mat4(glm::mat3(glm::lookAt(scene.camera.position, scene.camera.target, scene.camera.up))), 
+                            scene.camera.projection(), deltaTime, &scene);
+
             glEnable(GL_DEPTH_TEST);
 
             scene.render(deltaTime, SceneGraph::RenderPass::GEOMETRY);
-            glDepthMask(GL_FALSE);
             glDisable(GL_DEPTH_TEST);
         }
 
@@ -537,6 +564,10 @@ int main() {
         {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glClear(GL_COLOR_BUFFER_BIT);
+
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, gMask);
+
             scene.pass = SceneGraph::RenderPass::POST;
             screenQuad.render(glm::mat4(1.0f), glm::mat4(1.0f), deltaTime, &scene);
         }
@@ -563,3 +594,5 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
     //globalScene->camera.setAspect((float)width / (float)height);
 }
+
+#pragma warning(pop)
